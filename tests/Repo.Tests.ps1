@@ -31,6 +31,23 @@ Describe 'JSON validity' {
     }
 }
 
+Describe 'Strict JSON validity' {
+    # PowerShell's ConvertFrom-Json tolerates raw control characters inside
+    # string literals; the JSON spec and most parsers (Node, browsers, the
+    # Postman importer) do not. Validate with a strict parser so unescaped
+    # newlines or tabs cannot slip into a shipped artifact.
+    $jsonFiles = @(
+        'workbook/third-party-vulnerabilities.workbook.json',
+        'postman/third-party-vulnerabilities.postman_collection.json',
+        'postman/third-party-vulnerabilities.postman_environment.json'
+    )
+    It "parses '<_>' under a strict JSON parser" -ForEach $jsonFiles {
+        $path = Join-Path $Repo $_
+        $null = node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" $path 2>$null
+        $LASTEXITCODE | Should -Be 0 -Because "$_ must be valid per the JSON spec, not just PowerShell"
+    }
+}
+
 Describe 'Workbook structure' {
     It 'declares the Notebook/1.0 schema version' {
         $Workbook.version | Should -Be 'Notebook/1.0'
@@ -167,5 +184,75 @@ Describe 'Repository files' {
     }
     It 'has a LICENSE' {
         Test-Path (Join-Path $Repo 'LICENSE') | Should -BeTrue
+    }
+}
+
+Describe 'README accuracy' {
+    BeforeAll {
+        $script:RootReadme     = Get-Content (Join-Path $Repo 'README.md') -Raw
+        $script:WorkbookReadme = Get-Content (Join-Path $Repo 'workbook/README.md') -Raw
+    }
+
+    # The five Entra tab labels as they actually appear in the workbook.
+    $currentTabNames = @(
+        'Entra recommendations',
+        'Enterprise application inventory',
+        'Application credentials',
+        'Delegated permission grants',
+        'Microsoft Graph app permissions'
+    )
+    # Earlier tab names that no longer exist in the workbook UI.
+    $staleTabNames = @(
+        'Remediation (Entra Recommendations)',
+        'Third-Party App Inventory',
+        'Credential Hygiene',
+        'Risky Delegated Consents',
+        'High-Privilege App Permissions',
+        'Remediation tab'
+    )
+
+    It "root README documents the current tab '<_>'" -ForEach $currentTabNames {
+        $RootReadme | Should -Match ([regex]::Escape($_))
+    }
+    It "workbook README documents the current tab '<_>'" -ForEach $currentTabNames {
+        $WorkbookReadme | Should -Match ([regex]::Escape($_))
+    }
+    It "root README does not reference the stale tab '<_>'" -ForEach $staleTabNames {
+        $RootReadme | Should -Not -Match ([regex]::Escape($_))
+    }
+    It "workbook README does not reference the stale tab '<_>'" -ForEach $staleTabNames {
+        $WorkbookReadme | Should -Not -Match ([regex]::Escape($_))
+    }
+
+    $expectedGridTitle = @(
+        'GET /beta/directory/recommendations',
+        'GET /v1.0/servicePrincipals',
+        'GET /v1.0/applications',
+        'GET /v1.0/oauth2PermissionGrants'
+    )
+    It "root README lists the Graph endpoint '<_>'" -ForEach $expectedGridTitle {
+        $RootReadme | Should -Match ([regex]::Escape($_))
+    }
+}
+
+Describe 'Postman behavioral coverage' {
+    # Executes the embedded Postman JavaScript against mocks and enforces
+    # >= 80% line/branch/function coverage via the Node built-in test runner.
+    It 'runs the embedded scripts at >= 80% coverage' {
+        $harness = Join-Path $Repo 'tests/postman/postman.test.mjs'
+        Test-Path $harness | Should -BeTrue
+        Push-Location $Repo
+        try {
+            $null = node --test --experimental-test-coverage `
+                --test-coverage-include="**/generated/**" `
+                --test-coverage-lines=0.8 `
+                --test-coverage-branches=0.8 `
+                --test-coverage-functions=0.8 `
+                $harness 2>&1
+            $LASTEXITCODE | Should -Be 0 -Because 'behavioral tests must pass and meet the 80% coverage thresholds'
+        }
+        finally {
+            Pop-Location
+        }
     }
 }

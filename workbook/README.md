@@ -25,7 +25,7 @@ An Azure Monitor workbook with two domains, selected from a top-level domain sel
   Reader** or **Security Reader** directory role covers all five tabs. Equivalent granular scopes:
   `DirectoryRecommendations.Read.All`, `Application.Read.All`, `Directory.Read.All`,
   `DelegatedPermissionGrant.Read.All`.
-- The Remediation tab returns data only when Microsoft Entra ID P1 or P2 is licensed.
+- The Entra recommendations tab returns data only when Microsoft Entra ID P1 or P2 is licensed.
 - For the Software domain: Microsoft Defender for Servers Plan 2 or Defender Vulnerability Management is
   enabled on the resources, and the user has the **Reader** role on the selected subscriptions.
 - To save or deploy the workbook: **Monitoring Contributor** or **Workbook Contributor** on the target
@@ -67,27 +67,27 @@ Select a tab. Each tab runs a Microsoft Graph query and renders the result as a 
 
 | Tab | Graph endpoint | Columns |
 | --- | --- | --- |
-| **Remediation (Entra Recommendations)** | `GET /beta/directory/recommendations` | Recommendation, Priority, Status, Type, Impact, FlaggedSince, ActionSteps. |
-| **Third-Party App Inventory** | `GET /v1.0/servicePrincipals` | Application, AppId, Publisher, VerifiedPublisher, OwnerTenant, Audience, Enabled, Homepage. |
-| **Credential Hygiene** | `GET /v1.0/applications` | Application, AppId, Audience, ClientSecrets, SecretExpiry, CertExpiry, Created. |
-| **Risky Delegated Consents** | `GET /v1.0/oauth2PermissionGrants` | ClientSP, ConsentType, User, ResourceSP, Scopes. |
-| **High-Privilege App Permissions** | `GET /v1.0/servicePrincipals(appId='00000003-…')/appRoleAssignedTo` | Application, AppSP, AppRoleId, Granted, Resource. |
+| **Entra recommendations** | `GET /beta/directory/recommendations` | Recommendation, Priority, Status, Type, Impact, FlaggedSince, ActionSteps. |
+| **Enterprise application inventory** | `GET /v1.0/servicePrincipals` | Application, AppId, Publisher, VerifiedPublisher, OwnerTenant, Audience, Enabled, Homepage. |
+| **Application credentials** | `GET /v1.0/applications` | Application, AppId, Audience, ClientSecrets, SecretExpiry, CertExpiry, Created. |
+| **Delegated permission grants** | `GET /v1.0/oauth2PermissionGrants` | ClientSP, ConsentType, User, ResourceSP, Scopes. |
+| **Microsoft Graph app permissions** | `GET /v1.0/servicePrincipals(appId='00000003-…')/appRoleAssignedTo` | Application, AppSP, AppRoleId, Granted, Resource. |
 
 Column rendering:
 
-- **Remediation**: `Status` values are `active`, `completedBySystem`, `completedByUser`, `dismissed`,
+- **Entra recommendations**: `Status` values are `active`, `completedBySystem`, `completedByUser`, `dismissed`,
   `postponed`. `ActionSteps` contains the text returned by the recommendation. The tab returns no rows
   without Entra ID P1/P2. `Status` cells render red for `active`, green when the value contains `completed`,
   gray for `dismissed`, yellow for `postponed`. `Priority` renders red/orange/yellow for
   `high`/`medium`/`low`.
-- **Third-Party App Inventory**: `Audience` renders orange when the value contains `Multiple` or `Personal`.
+- **Enterprise application inventory**: `Audience` renders orange when the value contains `Multiple` or `Personal`.
   `VerifiedPublisher` renders `Unverified` in yellow when empty.
-- **Credential Hygiene**: `ClientSecrets` renders orange when non-empty. `SecretExpiry` and `CertExpiry`
+- **Application credentials**: `ClientSecrets` renders orange when non-empty. `SecretExpiry` and `CertExpiry`
   contain the `endDateTime` values returned by Graph.
-- **Risky Delegated Consents**: `ConsentType` renders red when the value is `AllPrincipals`. `Scopes`
+- **Delegated permission grants**: `ConsentType` renders red when the value is `AllPrincipals`. `Scopes`
   renders red when it contains `Directory.ReadWrite` or `full_access`, orange when it contains `Mail.` or
   `Files.ReadWrite`.
-- **High-Privilege App Permissions**: `AppRoleId` cells render with a label and color for the IDs in the
+- **Microsoft Graph app permissions**: `AppRoleId` cells render with a label and color for the IDs in the
   table below; other IDs render unchanged.
 
 `AppRoleId` label and color reference:

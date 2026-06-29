@@ -25,7 +25,7 @@ An Azure Monitor workbook with two domains, selected from a top-level domain sel
   Reader** or **Security Reader** directory role covers all five tabs. Equivalent granular scopes:
   `DirectoryRecommendations.Read.All`, `Application.Read.All`, `Directory.Read.All`,
   `DelegatedPermissionGrant.Read.All`.
-- The Remediation tab returns data only when Microsoft Entra ID P1 or P2 is licensed.
+- The Entra recommendations tab returns data only when Microsoft Entra ID P1 or P2 is licensed.
 - For the Software domain: Microsoft Defender for Servers Plan 2 or Defender Vulnerability Management is
   enabled on the resources, and the user has the **Reader** role on the selected subscriptions.
 - To save or deploy the workbook: **Monitoring Contributor** or **Workbook Contributor** on the target

@@ -8,3 +8,7 @@
 Thumbs.db
 .vscode/
 *.swp
+
+# Node / generated test artifacts
+node_modules/
+tests/postman/generated/
