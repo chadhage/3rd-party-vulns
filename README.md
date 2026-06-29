@@ -16,6 +16,7 @@ An Azure Monitor workbook with two domains, selected from a top-level domain sel
 | `README.md` | This guide. |
 | `postman/third-party-vulnerabilities.postman_collection.json` | Postman collection that calls the same Microsoft Graph endpoints as the Entra ID tabs. |
 | `postman/third-party-vulnerabilities.postman_environment.json` | Postman environment template for the collection. |
+| `tests/Repo.Tests.ps1` | Pester unit tests for the workbook, Bicep, and Postman artifacts. |
 
 ## Prerequisites
 
@@ -177,3 +178,24 @@ Requests:
 Each response returns a `value` array. When more results exist, the response includes `@odata.nextLink`;
 the request's test script stores it in the `nextLink` environment variable. Send the **Next page** request
 to retrieve the following page, and repeat until `nextLink` is no longer set.
+
+## Tests
+
+The `tests/` folder contains Pester tests that validate the artifacts in this repository: JSON parses,
+the workbook structure and content, Bicep compilation and settings, the Postman collection, and the
+syntax of the embedded Postman JavaScript.
+
+Prerequisites:
+
+- PowerShell 7 or later.
+- Pester 5 or later (`Install-Module Pester -Scope CurrentUser`).
+- Node.js (used to syntax-check the Postman scripts).
+- Azure CLI (used to compile the Bicep template).
+
+Run from the repository root:
+
+```powershell
+Invoke-Pester -Path ./tests -Output Detailed
+```
+
+The run reports the number of tests passed and failed.
