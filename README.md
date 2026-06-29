@@ -11,11 +11,11 @@ An Azure Monitor workbook with two domains, selected from a top-level domain sel
 
 | File | Purpose |
 | --- | --- |
-| `third-party-vulnerabilities.workbook.json` | The workbook definition. |
-| `deploy.bicep` | Deploys the workbook from the JSON file. |
+| `workbook/third-party-vulnerabilities.workbook.json` | The workbook definition. |
+| `workbook/deploy.bicep` | Deploys the workbook from the JSON file. |
 | `README.md` | This guide. |
-| `../postman/third-party-vulnerabilities.postman_collection.json` | Postman collection that calls the same Microsoft Graph endpoints as the Entra ID tabs. |
-| `../postman/third-party-vulnerabilities.postman_environment.json` | Postman environment template for the collection. |
+| `postman/third-party-vulnerabilities.postman_collection.json` | Postman collection that calls the same Microsoft Graph endpoints as the Entra ID tabs. |
+| `postman/third-party-vulnerabilities.postman_environment.json` | Postman environment template for the collection. |
 
 ## Prerequisites
 
@@ -39,7 +39,7 @@ az group create --name rg-security-workbooks --location westeurope
 
 az deployment group create `
   --resource-group rg-security-workbooks `
-  --template-file deploy.bicep
+  --template-file workbook/deploy.bicep
 ```
 
 The deployment outputs `workbookResourceId` and `workbookName`.
@@ -47,7 +47,7 @@ The deployment outputs `workbookResourceId` and `workbookName`.
 ### Option B: Import in the portal
 
 1. Azure Portal → **Monitor** → **Workbooks** → **+ New** → **Advanced Editor** (`</>`).
-2. Paste the contents of `third-party-vulnerabilities.workbook.json`.
+2. Paste the contents of `workbook/third-party-vulnerabilities.workbook.json`.
 3. **Apply** → **Done Editing** → **Save**.
 
 ## Step 2 — Open the workbook
@@ -66,28 +66,29 @@ Select a tab. Each tab runs a Microsoft Graph query and renders the result as a 
 
 | Tab | Graph endpoint | Columns |
 | --- | --- | --- |
-| **Remediation (Entra Recommendations)** | `GET /beta/directory/recommendations` | Recommendation, Priority, Status, Type, Impact, FlaggedSince, ActionSteps. |
-| **Third-Party App Inventory** | `GET /v1.0/servicePrincipals` | Application, AppId, Publisher, VerifiedPublisher, OwnerTenant, Audience, Enabled, Homepage. |
-| **Credential Hygiene** | `GET /v1.0/applications` | Application, AppId, Audience, ClientSecrets, SecretExpiry, CertExpiry, Created. |
-| **Risky Delegated Consents** | `GET /v1.0/oauth2PermissionGrants` | ClientSP, ConsentType, User, ResourceSP, Scopes. |
-| **High-Privilege App Permissions** | `GET /v1.0/servicePrincipals(appId='00000003-…')/appRoleAssignedTo` | Application, AppSP, AppRoleId, Granted, Resource. |
+| **Entra recommendations** | `GET /beta/directory/recommendations` | Recommendation, Priority, Status, Type, Impact, FlaggedSince, ActionSteps. |
+| **Enterprise application inventory** | `GET /v1.0/servicePrincipals` | Application, AppId, Publisher, VerifiedPublisher, OwnerTenant, Audience, Enabled, Homepage. |
+| **Application credentials** | `GET /v1.0/applications` | Application, AppId, Audience, ClientSecrets, SecretExpiry, CertExpiry, Created. |
+| **Delegated permission grants** | `GET /v1.0/oauth2PermissionGrants` | ClientSP, ConsentType, User, ResourceSP, Scopes. |
+| **Microsoft Graph app permissions** | `GET /v1.0/servicePrincipals(appId='00000003-…')/appRoleAssignedTo` | Application, AppSP, AppRoleId, Granted, Resource. |
 
 Column rendering:
 
-- **Remediation**: `Status` values are `active`, `completedBySystem`, `completedByUser`, `dismissed`,
+- **Entra recommendations**: `Status` values are `active`, `completedBySystem`, `completedByUser`, `dismissed`,
   `postponed`. `ActionSteps` contains the text returned by the recommendation. The tab returns no rows
   without Entra ID P1/P2. `Status` cells render red for `active`, green when the value contains `completed`,
   gray for `dismissed`, yellow for `postponed`. `Priority` renders red/orange/yellow for
   `high`/`medium`/`low`.
-- **Third-Party App Inventory**: `Audience` renders orange when the value contains `Multiple` or `Personal`.
+- **Enterprise application inventory**: `Audience` renders orange when the value contains `Multiple` or `Personal`.
   `VerifiedPublisher` renders `Unverified` in yellow when empty.
-- **Credential Hygiene**: `ClientSecrets` renders orange when non-empty. `SecretExpiry` and `CertExpiry`
+- **Application credentials**: `ClientSecrets` renders orange when non-empty. `SecretExpiry` and `CertExpiry`
   contain the `endDateTime` values returned by Graph.
-- **Risky Delegated Consents**: `ConsentType` renders red when the value is `AllPrincipals`. `Scopes`
+- **Delegated permission grants**: `ConsentType` renders red when the value is `AllPrincipals`. `Scopes`
   renders red when it contains `Directory.ReadWrite` or `full_access`, orange when it contains `Mail.` or
   `Files.ReadWrite`.
-- **High-Privilege App Permissions**: `AppRoleId` cells render with a label and color for the IDs in the
-  table below; other IDs render unchanged.
+- **Microsoft Graph app permissions**: `AppRoleId` cells render with a label and color for the IDs in the
+  table below; other IDs render unchanged. This tab lists app-only permissions granted against Microsoft
+  Graph only; app-only permissions to other APIs (for example SharePoint, Exchange, Key Vault) are not shown.
 
 `AppRoleId` label and color reference:
 
@@ -130,6 +131,22 @@ Data sources (Azure Resource Graph):
 - The Defender queries use `coalesce(...)` to read `cveId`/`cve`, `softwareName`/`packageName`, and
   `cvss30Score`/`cvssScore`/`cvss`, because these property names vary by plan.
 - To include Microsoft products, remove the `!contains 'microsoft'` filters in the software queries.
+
+## Permission models: workbook vs Postman
+
+The workbook and the Postman collection read the same Microsoft Graph endpoints, but with different
+identities and permission types:
+
+- **Workbook (delegated):** queries run as the signed-in user using delegated permissions. A directory
+  role such as **Global Reader** or **Security Reader** is sufficient; no app registration or client
+  secret is required.
+- **Postman (application / client credentials):** requests run as an app registration using app-only
+  (application) permissions and a client secret. This identity is not tied to a user and requires admin
+  consent on the application permissions.
+
+The Microsoft Graph app-permissions tab (workbook) and request 5 (Postman) report app-only permissions
+granted against **Microsoft Graph only**. App-only permissions an application holds on other resource
+APIs (for example SharePoint, Exchange, Key Vault) are not returned by these queries.
 
 ## Alternative — Microsoft Graph via Postman
 

@@ -4,10 +4,10 @@ param workbookDisplayName string = 'Third-Party Application Vulnerabilities (Ent
 @description('Azure region for the workbook resource.')
 param location string = resourceGroup().location
 
-@description('Stable GUID for the workbook. Keep it constant to update the same workbook on redeploy.')
-param workbookId string = guid(resourceGroup().id, workbookDisplayName)
+@description('Stable GUID for the workbook. Keep it constant to update the same workbook on redeploy. Derived from a fixed seed so renaming the display name does not create a new workbook.')
+param workbookId string = guid(resourceGroup().id, 'third-party-vulnerabilities-workbook')
 
-// Workbook gallery category. 'workbook' = the generic Azure Monitor gallery.
+// Azure Monitor gallery the workbook is published to.
 var workbookSourceId = 'azure monitor'
 
 resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
@@ -16,7 +16,7 @@ resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
   kind: 'shared'
   properties: {
     displayName: workbookDisplayName
-    category: 'sentinel'
+    category: 'workbook'
     sourceId: workbookSourceId
     version: '1.0'
     serializedData: loadTextContent('third-party-vulnerabilities.workbook.json')

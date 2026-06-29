@@ -1,0 +1,10 @@
+# Secrets — never commit real credentials. Keep tokens/secrets out of committed
+# Postman environment files; use a local copy instead.
+.env
+*.local.postman_environment.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp

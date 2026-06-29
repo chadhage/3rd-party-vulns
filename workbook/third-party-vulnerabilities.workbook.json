@@ -4,7 +4,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## 🛡️ Third-Party Application Vulnerabilities\n\nA single pane for **DevSecOps remediation planning** across two domains:\n\n1. **🔐 Entra ID Applications** — third-party & in-house **app registrations / enterprise apps** scored for risky permissions, credential hygiene, risky OAuth consents, and **Microsoft Entra recommendations** (with *addressed / not-addressed* status and remediation guidance). Powered by **Microsoft Graph**.\n2. **💿 Software Vulnerabilities (Defender)** — non-Microsoft **software CVEs** discovered by **Microsoft Defender Vulnerability Management (MDVM)** via Azure Resource Graph (`securityresources`).\n\n> Use the **domain selector** below to switch between the two views."
+        "json": "## Third-Party Application Vulnerabilities\n\nTwo domains, selected with the domain selector below:\n\n1. **Entra ID Applications** — app registrations and enterprise applications queried through Microsoft Graph: Entra recommendations, application inventory, application credentials, delegated permission grants, and Microsoft Graph application permissions.\n2. **Software Vulnerabilities (Defender)** — non-Microsoft software CVEs reported by Microsoft Defender Vulnerability Management (MDVM) through Azure Resource Graph (`securityresources`)."
       },
       "name": "title"
     },
@@ -82,6 +82,11 @@
         "queryType": 10,
         "resourceType": "microsoft.resourcegraph/resources"
       },
+      "conditionalVisibility": {
+        "parameterName": "domain",
+        "comparison": "isEqualTo",
+        "value": "software"
+      },
       "name": "parameters"
     },
     {
@@ -129,7 +134,7 @@
             "id": "domain-entra",
             "cellValue": "domain",
             "linkTarget": "parameter",
-            "linkLabel": "🔐 Entra ID Applications",
+            "linkLabel": "Entra ID Applications",
             "subTarget": "entra",
             "style": "link"
           },
@@ -137,7 +142,7 @@
             "id": "domain-software",
             "cellValue": "domain",
             "linkTarget": "parameter",
-            "linkLabel": "💿 Software Vulnerabilities (Defender)",
+            "linkLabel": "Software Vulnerabilities (Defender)",
             "subTarget": "software",
             "style": "link"
           }
@@ -148,7 +153,7 @@
     {
       "type": 1,
       "content": {
-        "json": "## 🔐 Entra ID Application Vulnerabilities\n\nThird-party & in-house **app registrations / enterprise applications** in your tenant, assessed for security weaknesses via **Microsoft Graph**:\n- **Remediation** — Microsoft Entra recommendations with *status* (addressed / active) and *action steps*.\n- **Third-Party App Inventory** — external-publisher service principals (attack surface).\n- **Credential Hygiene** — client secrets vs. certificates and expiry dates.\n- **Risky Delegated Consents** — OAuth grants, tenant-wide admin consent & sensitive scopes.\n- **High-Privilege App Permissions** — application (app-only) Microsoft Graph permissions.\n\n> **Prerequisites:** signed-in user needs Microsoft Graph **delegated read** (role **Global Reader** or **Security Reader**): `DirectoryRecommendations.Read.All`, `Application.Read.All`, `Directory.Read.All`, `DelegatedPermissionGrant.Read.All`. Recommendations require **Microsoft Entra ID P1/P2**."
+        "json": "## Entra ID Applications\n\nApp registrations and enterprise applications in your tenant, queried through Microsoft Graph:\n- **Entra recommendations** — recommendation status (active, completed, dismissed, postponed) and action steps.\n- **Enterprise application inventory** — service principals with publisher, owner tenant, and sign-in audience. Apps whose owner tenant differs from your tenant are third-party.\n- **Application credentials** — client secrets and certificates with expiry dates.\n- **Delegated permission grants** — OAuth2 grants, consent type, and scopes.\n- **Microsoft Graph application permissions** — application (app-only) permissions granted against Microsoft Graph.\n\n> Prerequisites: the signed-in user needs Microsoft Graph delegated read (role Global Reader or Security Reader): `DirectoryRecommendations.Read.All`, `Application.Read.All`, `Directory.Read.All`, `DelegatedPermissionGrant.Read.All`. Recommendations require Microsoft Entra ID P1 or P2."
       },
       "conditionalVisibility": {
         "parameterName": "domain",
@@ -185,7 +190,41 @@
         "tileSettings": {
           "titleContent": {
             "columnMatch": "severity",
-            "formatter": 1
+            "formatter": 18,
+            "formatOptions": {
+              "thresholdsOptions": "colors",
+              "thresholdsGrid": [
+                {
+                  "operator": "==",
+                  "thresholdValue": "Critical",
+                  "representation": "redBright",
+                  "text": "{0}{1}"
+                },
+                {
+                  "operator": "==",
+                  "thresholdValue": "High",
+                  "representation": "orange",
+                  "text": "{0}{1}"
+                },
+                {
+                  "operator": "==",
+                  "thresholdValue": "Medium",
+                  "representation": "yellow",
+                  "text": "{0}{1}"
+                },
+                {
+                  "operator": "==",
+                  "thresholdValue": "Low",
+                  "representation": "blue",
+                  "text": "{0}{1}"
+                },
+                {
+                  "operator": "Default",
+                  "representation": "transparent",
+                  "text": "{0}{1}"
+                }
+              ]
+            }
           },
           "leftContent": {
             "columnMatch": "Findings",
@@ -363,7 +402,7 @@
         "version": "KqlItem/1.0",
         "query": "securityresources\r\n| where type =~ 'microsoft.security/softwareinventories'\r\n| extend vendor = tostring(properties.vendor)\r\n| where tolower(vendor) !contains 'microsoft'\r\n| where vendor in~ ({Vendor}) or '*' in ({Vendor})\r\n| extend software = tostring(properties.softwareName), version = tostring(properties.version), eos = tostring(properties.endOfSupportStatus), device = tostring(properties.deviceName)\r\n| summarize Devices = dcount(device), Versions = make_set(version, 25) by Vendor = vendor, Software = software, ['End of Support'] = eos\r\n| order by Devices desc",
         "size": 0,
-        "title": "Third-party software inventory (attack surface)",
+        "title": "Third-party software inventory",
         "showExportToExcel": true,
         "queryType": 10,
         "resourceType": "microsoft.resourcegraph/resources",
@@ -424,7 +463,7 @@
         "version": "KqlItem/1.0",
         "query": "securityresources\r\n| where type =~ 'microsoft.security/assessments/subassessments'\r\n| extend ad = properties.additionalData\r\n| extend assessedType = tostring(ad.assessedResourceType)\r\n| where assessedType in~ ('ServerVulnerabilityAssessment', 'ContainerRegistryVulnerability', 'ContainerImageVulnerability')\r\n| extend vendor = tostring(coalesce(ad.vendor, 'Unknown'))\r\n| where tolower(vendor) !contains 'microsoft'\r\n| where vendor in~ ({Vendor}) or '*' in ({Vendor})\r\n| extend severity = tostring(properties.status.severity)\r\n| where severity in~ ({Severity}) or '*' in ({Severity})\r\n| extend cve = tostring(coalesce(ad.cveId, ad.cve, properties.id))\r\n| extend resourceId = tostring(properties.resourceDetails.id)\r\n| extend device = tostring(split(resourceId, '/')[8])\r\n| summarize Critical = countif(severity =~ 'Critical'), High = countif(severity =~ 'High'), Medium = countif(severity =~ 'Medium'), Low = countif(severity =~ 'Low'), TotalCVEs = dcount(cve), Vendors = dcount(vendor) by Device = device, ResourceId = resourceId\r\n| order by Critical desc, High desc, TotalCVEs desc",
         "size": 0,
-        "title": "Devices ranked by third-party vulnerability exposure",
+        "title": "Devices by third-party CVE counts",
         "showExportToExcel": true,
         "queryType": 10,
         "resourceType": "microsoft.resourcegraph/resources",
@@ -541,7 +580,7 @@
             "id": "etab-recs",
             "cellValue": "entraTab",
             "linkTarget": "parameter",
-            "linkLabel": "Remediation (Entra Recommendations)",
+            "linkLabel": "Entra recommendations",
             "subTarget": "recs",
             "style": "link"
           },
@@ -549,7 +588,7 @@
             "id": "etab-inventory",
             "cellValue": "entraTab",
             "linkTarget": "parameter",
-            "linkLabel": "Third-Party App Inventory",
+            "linkLabel": "Enterprise application inventory",
             "subTarget": "inventory",
             "style": "link"
           },
@@ -557,7 +596,7 @@
             "id": "etab-creds",
             "cellValue": "entraTab",
             "linkTarget": "parameter",
-            "linkLabel": "Credential Hygiene",
+            "linkLabel": "Application credentials",
             "subTarget": "creds",
             "style": "link"
           },
@@ -565,7 +604,7 @@
             "id": "etab-consents",
             "cellValue": "entraTab",
             "linkTarget": "parameter",
-            "linkLabel": "Risky Delegated Consents",
+            "linkLabel": "Delegated permission grants",
             "subTarget": "consents",
             "style": "link"
           },
@@ -573,7 +612,7 @@
             "id": "etab-approles",
             "cellValue": "entraTab",
             "linkTarget": "parameter",
-            "linkLabel": "High-Privilege App Permissions",
+            "linkLabel": "Microsoft Graph app permissions",
             "subTarget": "approles",
             "style": "link"
           }
@@ -592,7 +631,7 @@
         "version": "KqlItem/1.0",
         "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/beta/directory/recommendations\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.displayName\",\"columnid\":\"Recommendation\"},{\"path\":\"$.priority\",\"columnid\":\"Priority\"},{\"path\":\"$.status\",\"columnid\":\"Status\"},{\"path\":\"$.recommendationType\",\"columnid\":\"Type\"},{\"path\":\"$.impactType\",\"columnid\":\"Impact\"},{\"path\":\"$.impactStartDateTime\",\"columnid\":\"FlaggedSince\"},{\"path\":\"$.actionSteps[*].text\",\"columnid\":\"ActionSteps\"}]}}]}",
         "size": 0,
-        "title": "Microsoft Entra recommendations \u2014 remediation status & guidance",
+        "title": "Microsoft Entra recommendations",
         "noDataMessage": "No recommendations returned. Requires Microsoft Entra ID P1/P2 and the DirectoryRecommendations.Read.All delegated scope (Global Reader / Security Reader).",
         "showExportToExcel": true,
         "queryType": 14,
@@ -694,7 +733,7 @@
         "version": "KqlItem/1.0",
         "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/v1.0/servicePrincipals?$filter=servicePrincipalType eq 'Application'&$select=displayName,appId,appOwnerOrganizationId,accountEnabled,servicePrincipalType,homepage,verifiedPublisher,publisherName,signInAudience\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.displayName\",\"columnid\":\"Application\"},{\"path\":\"$.appId\",\"columnid\":\"AppId\"},{\"path\":\"$.publisherName\",\"columnid\":\"Publisher\"},{\"path\":\"$.verifiedPublisher.displayName\",\"columnid\":\"VerifiedPublisher\"},{\"path\":\"$.appOwnerOrganizationId\",\"columnid\":\"OwnerTenant\"},{\"path\":\"$.signInAudience\",\"columnid\":\"Audience\"},{\"path\":\"$.accountEnabled\",\"columnid\":\"Enabled\"},{\"path\":\"$.homepage\",\"columnid\":\"Homepage\"}]}}]}",
         "size": 0,
-        "title": "Third-party enterprise applications (service principals) \u2014 attack surface",
+        "title": "Enterprise applications (service principals)",
         "noDataMessage": "No service principals returned. Requires the Application.Read.All / Directory.Read.All delegated scope.",
         "showExportToExcel": true,
         "queryType": 14,
@@ -770,7 +809,7 @@
         "version": "KqlItem/1.0",
         "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/v1.0/applications?$select=displayName,appId,signInAudience,createdDateTime,passwordCredentials,keyCredentials\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.displayName\",\"columnid\":\"Application\"},{\"path\":\"$.appId\",\"columnid\":\"AppId\"},{\"path\":\"$.signInAudience\",\"columnid\":\"Audience\"},{\"path\":\"$.passwordCredentials[*].keyId\",\"columnid\":\"ClientSecrets\"},{\"path\":\"$.passwordCredentials[*].endDateTime\",\"columnid\":\"SecretExpiry\"},{\"path\":\"$.keyCredentials[*].endDateTime\",\"columnid\":\"CertExpiry\"},{\"path\":\"$.createdDateTime\",\"columnid\":\"Created\"}]}}]}",
         "size": 0,
-        "title": "Credential hygiene \u2014 client secrets vs. certificates and expiry",
+        "title": "Application credentials (secrets and certificates)",
         "noDataMessage": "No applications returned. Requires the Application.Read.All delegated scope.",
         "showExportToExcel": true,
         "queryType": 14,
@@ -844,9 +883,9 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/v1.0/oauth2PermissionGrants\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.clientId\",\"columnid\":\"ClientSP\"},{\"path\":\"$.consentType\",\"columnid\":\"ConsentType\"},{\"path\":\"$.principalId\",\"columnid\":\"User\"},{\"path\":\"$.resourceId\",\"columnid\":\"ResourceSP\"},{\"path\":\"$.scope\",\"columnid\":\"Scopes\"}]}}]}",
+        "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/v1.0/oauth2PermissionGrants?$top=200\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.clientId\",\"columnid\":\"ClientSP\"},{\"path\":\"$.consentType\",\"columnid\":\"ConsentType\"},{\"path\":\"$.principalId\",\"columnid\":\"User\"},{\"path\":\"$.resourceId\",\"columnid\":\"ResourceSP\"},{\"path\":\"$.scope\",\"columnid\":\"Scopes\"}]}}]}",
         "size": 0,
-        "title": "Risky delegated OAuth consents \u2014 tenant-wide admin consent & sensitive scopes",
+        "title": "Delegated permission grants (OAuth2)",
         "noDataMessage": "No OAuth2 permission grants returned. Requires the DelegatedPermissionGrant.Read.All / Directory.Read.All delegated scope.",
         "showExportToExcel": true,
         "queryType": 14,
@@ -932,7 +971,7 @@
     {
       "type": 1,
       "content": {
-        "json": "**High-privilege Microsoft Graph application (app-only) permissions** granted to apps. Highlighted role IDs are the most dangerous: `19dbc75e-\u2026` Directory.ReadWrite.All \u00b7 `9e3f62cf-\u2026` RoleManagement.ReadWrite.Directory \u00b7 `1bfefb4e-\u2026` Application.ReadWrite.All \u00b7 `06b708a9-\u2026` AppRoleAssignment.ReadWrite.All \u00b7 `e2a3a72e-\u2026` Mail.ReadWrite \u00b7 `75359482-\u2026` Files.ReadWrite.All."
+        "json": "**Microsoft Graph application (app-only) permissions** granted to apps. This tab covers permissions granted against **Microsoft Graph only**; app-only permissions to other APIs (for example SharePoint, Exchange, Key Vault) are not shown. Labelled role IDs: `19dbc75e-\u2026` Directory.ReadWrite.All \u00b7 `9e3f62cf-\u2026` RoleManagement.ReadWrite.Directory \u00b7 `1bfefb4e-\u2026` Application.ReadWrite.All \u00b7 `06b708a9-\u2026` AppRoleAssignment.ReadWrite.All \u00b7 `e2a3a72e-\u2026` Mail.ReadWrite \u00b7 `75359482-\u2026` Files.ReadWrite.All."
       },
       "conditionalVisibilities": [
         {
@@ -954,7 +993,7 @@
         "version": "KqlItem/1.0",
         "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/v1.0/servicePrincipals(appId='00000003-0000-0000-c000-000000000000')/appRoleAssignedTo\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.principalDisplayName\",\"columnid\":\"Application\"},{\"path\":\"$.principalId\",\"columnid\":\"AppSP\"},{\"path\":\"$.appRoleId\",\"columnid\":\"AppRoleId\"},{\"path\":\"$.createdDateTime\",\"columnid\":\"Granted\"},{\"path\":\"$.resourceDisplayName\",\"columnid\":\"Resource\"}]}}]}",
         "size": 0,
-        "title": "Application (app-only) Microsoft Graph permissions \u2014 over-privilege review",
+        "title": "Microsoft Graph application (app-only) permissions",
         "noDataMessage": "No application permissions to Microsoft Graph returned. Requires the Application.Read.All / Directory.Read.All delegated scope.",
         "showExportToExcel": true,
         "queryType": 14,

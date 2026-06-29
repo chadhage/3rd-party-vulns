@@ -2,7 +2,11 @@
   "info": {
     "_postman_id": "6b6f7d2e-1a3c-4f5b-9c10-3a2e7d8b4c01",
     "name": "Third-Party Vulnerabilities - Microsoft Graph",
-    "description": "Calls the same Microsoft Graph endpoints used by the Azure Monitor workbook in this repo, so you can retrieve Entra ID application posture data directly from a client.\n\nAuthentication: OAuth 2.0 client credentials (app-only). The collection pre-request script requests an access token from Microsoft identity platform and caches it in the `access_token` environment variable until it expires. The collection sends `Authorization: Bearer {{access_token}}` on every request.\n\nApp registration setup (one time):\n1. Entra ID > App registrations > New registration.\n2. Certificates & secrets > New client secret. Copy the value into the `clientSecret` environment variable.\n3. API permissions > Add a permission > Microsoft Graph > Application permissions. Add: DirectoryRecommendations.Read.All, Application.Read.All, Directory.Read.All. Then Grant admin consent.\n4. Copy the Directory (tenant) ID and Application (client) ID into `tenantId` and `clientId`.\n\nDelegated alternative: if you cannot grant application permissions, replace the collection auth with Postman's OAuth 2.0 Authorization Code flow using the same scopes as delegated permissions, then remove or disable the pre-request script.\n\nPagination: Graph returns a page plus an `@odata.nextLink` when more results exist. Each request's test script stores `@odata.nextLink` in the `nextLink` environment variable and logs the page size. To fetch the next page, send a GET to the value of `nextLink`.",
+    "description": "Calls the same Microsoft Graph endpoints used by the Azure Monitor workbook in this repo, so you can retrieve Entra ID application posture data directly from a client.\n\nAuthentication: OAuth 2.0 client credentials (app-only). The collection pre-request script requests an access token from Microsoft identity platform and caches it in the `access_token` environment variable until it expires. The collection sends `Authorization: Bearer {{access_token}}` on every request.\n\nApp registration setup (one time):\n1. Entra ID > App registrations > New registration.\n2. Certificates & secrets > New client secret. Copy the value into the `clientSecret` environment variable.\n3. API permissions > Add a permission > Microsoft Graph > Application permissions. Add: DirectoryRecommendations.Read.All, Application.Read.All, Directory.Read.All. Then Grant admin consent.\n4. Copy the Directory (tenant) ID and Application (client) ID into `tenantId` and `clientId`.\n\nDelegated alternative: if you cannot grant application permissions, replace the collection auth with Postman's OAuth 2.0 Authorization Code flow using the same scopes as delegated permissions, then remove or disable the pre-request script.\n\nPagination: Graph returns a page plus an `@odata.nextLink` when more results exist. Each request's test script stores `@odata.nextLink` in the `nextLink` environment variable and logs the page size. To fetch the next page, send a GET to the value of `nextLink`.
+
+Throttling: Graph may return HTTP 429 when rate limits are exceeded. Each test script logs the `Retry-After` header (seconds) when a 429 is received. Wait that many seconds before retrying the request.
+
+Scope: the app role assignments request (5) reports app-only permissions granted against Microsoft Graph only; permissions an application holds on other resource APIs (for example SharePoint, Exchange, Key Vault) are not returned.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -75,7 +79,9 @@
             "exec": [
               "const json = pm.response.json();",
               "const arr = json.value || [];",
+              "if (pm.response.code === 429) { console.warn('Throttled (429). Retry-After (s):', pm.response.headers.get('Retry-After')); }",
               "console.log('recommendations on this page:', arr.length);",
+              "pm.test('value is an array', () => pm.expect(Array.isArray(arr)).to.be.true);",
               "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
               "else { pm.environment.unset('nextLink'); }",
               "pm.test('200 OK', () => pm.response.to.have.status(200));"
@@ -104,7 +110,9 @@
             "exec": [
               "const json = pm.response.json();",
               "const arr = json.value || [];",
+              "if (pm.response.code === 429) { console.warn('Throttled (429). Retry-After (s):', pm.response.headers.get('Retry-After')); }",
               "console.log('service principals on this page:', arr.length);",
+              "pm.test('value is an array', () => pm.expect(Array.isArray(arr)).to.be.true);",
               "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
               "else { pm.environment.unset('nextLink'); }",
               "pm.test('200 OK', () => pm.response.to.have.status(200));"
@@ -137,7 +145,9 @@
             "exec": [
               "const json = pm.response.json();",
               "const arr = json.value || [];",
+              "if (pm.response.code === 429) { console.warn('Throttled (429). Retry-After (s):', pm.response.headers.get('Retry-After')); }",
               "console.log('applications on this page:', arr.length);",
+              "pm.test('value is an array', () => pm.expect(Array.isArray(arr)).to.be.true);",
               "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
               "else { pm.environment.unset('nextLink'); }",
               "pm.test('200 OK', () => pm.response.to.have.status(200));"
@@ -169,7 +179,9 @@
             "exec": [
               "const json = pm.response.json();",
               "const arr = json.value || [];",
+              "if (pm.response.code === 429) { console.warn('Throttled (429). Retry-After (s):', pm.response.headers.get('Retry-After')); }",
               "console.log('grants on this page:', arr.length);",
+              "pm.test('value is an array', () => pm.expect(Array.isArray(arr)).to.be.true);",
               "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
               "else { pm.environment.unset('nextLink'); }",
               "pm.test('200 OK', () => pm.response.to.have.status(200));"
@@ -198,7 +210,9 @@
             "exec": [
               "const json = pm.response.json();",
               "const arr = json.value || [];",
+              "if (pm.response.code === 429) { console.warn('Throttled (429). Retry-After (s):', pm.response.headers.get('Retry-After')); }",
               "console.log('app role assignments on this page:', arr.length);",
+              "pm.test('value is an array', () => pm.expect(Array.isArray(arr)).to.be.true);",
               "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
               "else { pm.environment.unset('nextLink'); }",
               "pm.test('200 OK', () => pm.response.to.have.status(200));"
@@ -214,7 +228,7 @@
           "host": ["{{graphBase}}"],
           "path": ["v1.0", "servicePrincipals(appId='00000003-0000-0000-c000-000000000000')", "appRoleAssignedTo"]
         },
-        "description": "Application (app-only) Microsoft Graph permissions granted to apps. appRoleId identifies the permission (see the AppRoleId reference table in the README). App permission: Application.Read.All or Directory.Read.All."
+        "description": "Application (app-only) Microsoft Graph permissions granted to apps. appRoleId identifies the permission (see the AppRoleId reference table in the README). This request covers Microsoft Graph only; app-only permissions to other APIs (for example SharePoint, Exchange, Key Vault) are not returned. App permission: Application.Read.All or Directory.Read.All."
       }
     },
     {
@@ -227,7 +241,9 @@
             "exec": [
               "const json = pm.response.json();",
               "const arr = json.value || [];",
+              "if (pm.response.code === 429) { console.warn('Throttled (429). Retry-After (s):', pm.response.headers.get('Retry-After')); }",
               "console.log('items on this page:', arr.length);",
+              "pm.test('value is an array', () => pm.expect(Array.isArray(arr)).to.be.true);",
               "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
               "else { pm.environment.unset('nextLink'); console.log('last page'); }",
               "pm.test('200 OK', () => pm.response.to.have.status(200));"
