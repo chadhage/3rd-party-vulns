@@ -1,0 +1,1037 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "## 🛡️ Third-Party Application Vulnerabilities\n\nA single pane for **DevSecOps remediation planning** across two domains:\n\n1. **🔐 Entra ID Applications** — third-party & in-house **app registrations / enterprise apps** scored for risky permissions, credential hygiene, risky OAuth consents, and **Microsoft Entra recommendations** (with *addressed / not-addressed* status and remediation guidance). Powered by **Microsoft Graph**.\n2. **💿 Software Vulnerabilities (Defender)** — non-Microsoft **software CVEs** discovered by **Microsoft Defender Vulnerability Management (MDVM)** via Azure Resource Graph (`securityresources`).\n\n> Use the **domain selector** below to switch between the two views."
+      },
+      "name": "title"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "param-subscriptions",
+            "version": "KqlParameterItem/1.0",
+            "name": "Subscriptions",
+            "label": "Subscriptions",
+            "type": 6,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "includeAll": true
+            },
+            "value": [
+              "value::all"
+            ]
+          },
+          {
+            "id": "param-severity",
+            "version": "KqlParameterItem/1.0",
+            "name": "Severity",
+            "label": "Severity",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ]
+            },
+            "jsonData": "[\r\n {\"value\":\"Critical\",\"label\":\"Critical\",\"selected\":true},\r\n {\"value\":\"High\",\"label\":\"High\",\"selected\":true},\r\n {\"value\":\"Medium\",\"label\":\"Medium\"},\r\n {\"value\":\"Low\",\"label\":\"Low\"}\r\n]",
+            "value": [
+              "value::all"
+            ]
+          },
+          {
+            "id": "param-vendor",
+            "version": "KqlParameterItem/1.0",
+            "name": "Vendor",
+            "label": "Vendor",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "securityresources\r\n| where type =~ 'microsoft.security/assessments/subassessments'\r\n| where isnotempty(properties.additionalData.softwareName) or isnotempty(properties.additionalData.vendor)\r\n| extend vendor = tostring(coalesce(properties.additionalData.vendor, 'Unknown'))\r\n| where tolower(vendor) !contains 'microsoft'\r\n| distinct vendor\r\n| order by vendor asc",
+            "crossComponentResources": [
+              "{Subscriptions}"
+            ],
+            "queryType": 10,
+            "resourceType": "microsoft.resourcegraph/resources",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "showDefault": false
+            },
+            "value": [
+              "value::all"
+            ]
+          }
+        ],
+        "style": "pills",
+        "queryType": 10,
+        "resourceType": "microsoft.resourcegraph/resources"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "param-domain",
+            "version": "KqlParameterItem/1.0",
+            "name": "domain",
+            "type": 1,
+            "isHiddenWhenLocked": true,
+            "value": "entra"
+          },
+          {
+            "id": "param-entratab",
+            "version": "KqlParameterItem/1.0",
+            "name": "entraTab",
+            "type": 1,
+            "isHiddenWhenLocked": true,
+            "value": "recs"
+          },
+          {
+            "id": "param-selectedtab",
+            "version": "KqlParameterItem/1.0",
+            "name": "selectedTab",
+            "type": 1,
+            "isHiddenWhenLocked": true,
+            "value": "findings"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0
+      },
+      "name": "hidden-defaults"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "id": "domain-entra",
+            "cellValue": "domain",
+            "linkTarget": "parameter",
+            "linkLabel": "🔐 Entra ID Applications",
+            "subTarget": "entra",
+            "style": "link"
+          },
+          {
+            "id": "domain-software",
+            "cellValue": "domain",
+            "linkTarget": "parameter",
+            "linkLabel": "💿 Software Vulnerabilities (Defender)",
+            "subTarget": "software",
+            "style": "link"
+          }
+        ]
+      },
+      "name": "domain-tabs"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## 🔐 Entra ID Application Vulnerabilities\n\nThird-party & in-house **app registrations / enterprise applications** in your tenant, assessed for security weaknesses via **Microsoft Graph**:\n- **Remediation** — Microsoft Entra recommendations with *status* (addressed / active) and *action steps*.\n- **Third-Party App Inventory** — external-publisher service principals (attack surface).\n- **Credential Hygiene** — client secrets vs. certificates and expiry dates.\n- **Risky Delegated Consents** — OAuth grants, tenant-wide admin consent & sensitive scopes.\n- **High-Privilege App Permissions** — application (app-only) Microsoft Graph permissions.\n\n> **Prerequisites:** signed-in user needs Microsoft Graph **delegated read** (role **Global Reader** or **Security Reader**): `DirectoryRecommendations.Read.All`, `Application.Read.All`, `Directory.Read.All`, `DelegatedPermissionGrant.Read.All`. Recommendations require **Microsoft Entra ID P1/P2**."
+      },
+      "conditionalVisibility": {
+        "parameterName": "domain",
+        "comparison": "isEqualTo",
+        "value": "entra"
+      },
+      "name": "entra-header"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "### Summary"
+      },
+      "conditionalVisibility": {
+        "parameterName": "domain",
+        "comparison": "isEqualTo",
+        "value": "software"
+      },
+      "name": "summary-header"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "securityresources\r\n| where type =~ 'microsoft.security/assessments/subassessments'\r\n| extend ad = properties.additionalData\r\n| extend assessedType = tostring(ad.assessedResourceType)\r\n| where assessedType in~ ('ServerVulnerabilityAssessment', 'ContainerRegistryVulnerability', 'ContainerImageVulnerability')\r\n| extend vendor = tostring(coalesce(ad.vendor, 'Unknown'))\r\n| where tolower(vendor) !contains 'microsoft'\r\n| extend severity = tostring(properties.status.severity)\r\n| where severity in~ ({Severity}) or '*' in ({Severity})\r\n| summarize Findings = count() by severity\r\n| order by case(severity =~ 'Critical', 0, severity =~ 'High', 1, severity =~ 'Medium', 2, severity =~ 'Low', 3, 4) asc",
+        "size": 4,
+        "title": "Third-party CVE findings by severity",
+        "queryType": 10,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "{Subscriptions}"
+        ],
+        "visualization": "tiles",
+        "tileSettings": {
+          "titleContent": {
+            "columnMatch": "severity",
+            "formatter": 1
+          },
+          "leftContent": {
+            "columnMatch": "Findings",
+            "formatter": 12,
+            "formatOptions": {
+              "palette": "auto"
+            },
+            "numberFormat": {
+              "unit": 17,
+              "options": {
+                "maximumFractionDigits": 0
+              }
+            }
+          },
+          "showBorder": true,
+          "size": "auto"
+        }
+      },
+      "conditionalVisibility": {
+        "parameterName": "domain",
+        "comparison": "isEqualTo",
+        "value": "software"
+      },
+      "name": "tiles-by-severity"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "id": "tab-findings",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "CVE Findings",
+            "subTarget": "findings",
+            "style": "link"
+          },
+          {
+            "id": "tab-software",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Vulnerable Software",
+            "subTarget": "software",
+            "style": "link"
+          },
+          {
+            "id": "tab-devices",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Affected Devices",
+            "subTarget": "devices",
+            "style": "link"
+          },
+          {
+            "id": "tab-eol",
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "End-of-Support Software",
+            "subTarget": "eol",
+            "style": "link"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "domain",
+        "comparison": "isEqualTo",
+        "value": "software"
+      },
+      "name": "tabs"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "securityresources\r\n| where type =~ 'microsoft.security/assessments/subassessments'\r\n| extend ad = properties.additionalData\r\n| extend assessedType = tostring(ad.assessedResourceType)\r\n| where assessedType in~ ('ServerVulnerabilityAssessment', 'ContainerRegistryVulnerability', 'ContainerImageVulnerability')\r\n| extend vendor = tostring(coalesce(ad.vendor, 'Unknown'))\r\n| where tolower(vendor) !contains 'microsoft'\r\n| where vendor in~ ({Vendor}) or '*' in ({Vendor})\r\n| extend severity = tostring(properties.status.severity)\r\n| where severity in~ ({Severity}) or '*' in ({Severity})\r\n| extend cve = tostring(coalesce(ad.cveId, ad.cve, properties.id))\r\n| extend software = tostring(coalesce(ad.softwareName, ad.packageName, properties.displayName))\r\n| extend cvss = todouble(coalesce(ad.cvss30Score, ad.cvssScore, ad.cvss))\r\n| extend patchable = tostring(ad.patchable)\r\n| extend resourceName = tostring(split(id, '/')[8])\r\n| project Severity = severity, CVE = cve, Software = software, Vendor = vendor, ['CVSS'] = cvss, Patchable = patchable, Resource = resourceName, Finding = tostring(properties.displayName), ResourceId = tostring(properties.resourceDetails.id)\r\n| order by case(Severity =~ 'Critical', 0, Severity =~ 'High', 1, Severity =~ 'Medium', 2, Severity =~ 'Low', 3, 4) asc, ['CVSS'] desc",
+        "size": 0,
+        "title": "Third-party CVE findings (Defender Vulnerability Management)",
+        "showExportToExcel": true,
+        "queryType": 10,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "{Subscriptions}"
+        ],
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Severity",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "icons",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Critical",
+                    "representation": "4",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "High",
+                    "representation": "3",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Medium",
+                    "representation": "2",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Low",
+                    "representation": "1",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "info",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "CVSS",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "redGreen"
+              },
+              "numberFormat": {
+                "unit": 0,
+                "options": {
+                  "maximumFractionDigits": 1
+                }
+              }
+            },
+            {
+              "columnMatch": "CVE",
+              "formatter": 7,
+              "formatOptions": {
+                "linkTarget": "Url",
+                "linkIsContextBlade": false,
+                "showIcon": false
+              }
+            },
+            {
+              "columnMatch": "ResourceId",
+              "formatter": 5
+            }
+          ],
+          "filter": true,
+          "sortBy": []
+        }
+      },
+      "conditionalVisibilities": [
+        {
+          "parameterName": "domain",
+          "comparison": "isEqualTo",
+          "value": "software"
+        },
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "findings"
+        }
+      ],
+      "name": "grid-findings"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "securityresources\r\n| where type =~ 'microsoft.security/softwareinventories'\r\n| extend vendor = tostring(properties.vendor)\r\n| where tolower(vendor) !contains 'microsoft'\r\n| where vendor in~ ({Vendor}) or '*' in ({Vendor})\r\n| extend software = tostring(properties.softwareName), version = tostring(properties.version), eos = tostring(properties.endOfSupportStatus), device = tostring(properties.deviceName)\r\n| summarize Devices = dcount(device), Versions = make_set(version, 25) by Vendor = vendor, Software = software, ['End of Support'] = eos\r\n| order by Devices desc",
+        "size": 0,
+        "title": "Third-party software inventory (attack surface)",
+        "showExportToExcel": true,
+        "queryType": 10,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "{Subscriptions}"
+        ],
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Devices",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "blue"
+              }
+            },
+            {
+              "columnMatch": "End of Support",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "EOS",
+                    "representation": "redBright",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "transparent",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            }
+          ],
+          "filter": true
+        }
+      },
+      "conditionalVisibilities": [
+        {
+          "parameterName": "domain",
+          "comparison": "isEqualTo",
+          "value": "software"
+        },
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "software"
+        }
+      ],
+      "name": "grid-software"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "securityresources\r\n| where type =~ 'microsoft.security/assessments/subassessments'\r\n| extend ad = properties.additionalData\r\n| extend assessedType = tostring(ad.assessedResourceType)\r\n| where assessedType in~ ('ServerVulnerabilityAssessment', 'ContainerRegistryVulnerability', 'ContainerImageVulnerability')\r\n| extend vendor = tostring(coalesce(ad.vendor, 'Unknown'))\r\n| where tolower(vendor) !contains 'microsoft'\r\n| where vendor in~ ({Vendor}) or '*' in ({Vendor})\r\n| extend severity = tostring(properties.status.severity)\r\n| where severity in~ ({Severity}) or '*' in ({Severity})\r\n| extend cve = tostring(coalesce(ad.cveId, ad.cve, properties.id))\r\n| extend resourceId = tostring(properties.resourceDetails.id)\r\n| extend device = tostring(split(resourceId, '/')[8])\r\n| summarize Critical = countif(severity =~ 'Critical'), High = countif(severity =~ 'High'), Medium = countif(severity =~ 'Medium'), Low = countif(severity =~ 'Low'), TotalCVEs = dcount(cve), Vendors = dcount(vendor) by Device = device, ResourceId = resourceId\r\n| order by Critical desc, High desc, TotalCVEs desc",
+        "size": 0,
+        "title": "Devices ranked by third-party vulnerability exposure",
+        "showExportToExcel": true,
+        "queryType": 10,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "{Subscriptions}"
+        ],
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Critical",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "red"
+              }
+            },
+            {
+              "columnMatch": "High",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "orange"
+              }
+            },
+            {
+              "columnMatch": "TotalCVEs",
+              "formatter": 8,
+              "formatOptions": {
+                "palette": "gray"
+              }
+            },
+            {
+              "columnMatch": "ResourceId",
+              "formatter": 5
+            }
+          ],
+          "filter": true
+        }
+      },
+      "conditionalVisibilities": [
+        {
+          "parameterName": "domain",
+          "comparison": "isEqualTo",
+          "value": "software"
+        },
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "devices"
+        }
+      ],
+      "name": "grid-devices"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "securityresources\r\n| where type =~ 'microsoft.security/softwareinventories'\r\n| extend vendor = tostring(properties.vendor), eos = tostring(properties.endOfSupportStatus)\r\n| where tolower(vendor) !contains 'microsoft'\r\n| where eos in~ ('Already EOS', 'Upcoming EOS Version', 'Upcoming EOS SW')\r\n| where vendor in~ ({Vendor}) or '*' in ({Vendor})\r\n| extend software = tostring(properties.softwareName), version = tostring(properties.version), eosDate = tostring(properties.endOfSupportDate), device = tostring(properties.deviceName)\r\n| project Vendor = vendor, Software = software, Version = version, ['End of Support'] = eos, ['EOS Date'] = eosDate, Device = device\r\n| order by ['End of Support'] asc, Vendor asc",
+        "size": 0,
+        "title": "End-of-support / unsupported third-party software",
+        "showExportToExcel": true,
+        "queryType": 10,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": [
+          "{Subscriptions}"
+        ],
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "End of Support",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "Already EOS",
+                    "representation": "redBright",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "yellow",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            }
+          ],
+          "filter": true
+        }
+      },
+      "conditionalVisibilities": [
+        {
+          "parameterName": "domain",
+          "comparison": "isEqualTo",
+          "value": "software"
+        },
+        {
+          "parameterName": "selectedTab",
+          "comparison": "isEqualTo",
+          "value": "eol"
+        }
+      ],
+      "name": "grid-eol"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "id": "etab-recs",
+            "cellValue": "entraTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Remediation (Entra Recommendations)",
+            "subTarget": "recs",
+            "style": "link"
+          },
+          {
+            "id": "etab-inventory",
+            "cellValue": "entraTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Third-Party App Inventory",
+            "subTarget": "inventory",
+            "style": "link"
+          },
+          {
+            "id": "etab-creds",
+            "cellValue": "entraTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Credential Hygiene",
+            "subTarget": "creds",
+            "style": "link"
+          },
+          {
+            "id": "etab-consents",
+            "cellValue": "entraTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Risky Delegated Consents",
+            "subTarget": "consents",
+            "style": "link"
+          },
+          {
+            "id": "etab-approles",
+            "cellValue": "entraTab",
+            "linkTarget": "parameter",
+            "linkLabel": "High-Privilege App Permissions",
+            "subTarget": "approles",
+            "style": "link"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "domain",
+        "comparison": "isEqualTo",
+        "value": "entra"
+      },
+      "name": "entra-tabs"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/beta/directory/recommendations\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.displayName\",\"columnid\":\"Recommendation\"},{\"path\":\"$.priority\",\"columnid\":\"Priority\"},{\"path\":\"$.status\",\"columnid\":\"Status\"},{\"path\":\"$.recommendationType\",\"columnid\":\"Type\"},{\"path\":\"$.impactType\",\"columnid\":\"Impact\"},{\"path\":\"$.impactStartDateTime\",\"columnid\":\"FlaggedSince\"},{\"path\":\"$.actionSteps[*].text\",\"columnid\":\"ActionSteps\"}]}}]}",
+        "size": 0,
+        "title": "Microsoft Entra recommendations \u2014 remediation status & guidance",
+        "noDataMessage": "No recommendations returned. Requires Microsoft Entra ID P1/P2 and the DirectoryRecommendations.Read.All delegated scope (Global Reader / Security Reader).",
+        "showExportToExcel": true,
+        "queryType": 14,
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Status",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "active",
+                    "representation": "redBright",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "completed",
+                    "representation": "green",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "dismissed",
+                    "representation": "gray",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "postponed",
+                    "representation": "yellow",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "transparent",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "Priority",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "high",
+                    "representation": "redBright",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "medium",
+                    "representation": "orange",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "low",
+                    "representation": "yellow",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "transparent",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            }
+          ],
+          "filter": true,
+          "sortBy": []
+        }
+      },
+      "conditionalVisibilities": [
+        {
+          "parameterName": "domain",
+          "comparison": "isEqualTo",
+          "value": "entra"
+        },
+        {
+          "parameterName": "entraTab",
+          "comparison": "isEqualTo",
+          "value": "recs"
+        }
+      ],
+      "name": "grid-recs"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/v1.0/servicePrincipals?$filter=servicePrincipalType eq 'Application'&$select=displayName,appId,appOwnerOrganizationId,accountEnabled,servicePrincipalType,homepage,verifiedPublisher,publisherName,signInAudience\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.displayName\",\"columnid\":\"Application\"},{\"path\":\"$.appId\",\"columnid\":\"AppId\"},{\"path\":\"$.publisherName\",\"columnid\":\"Publisher\"},{\"path\":\"$.verifiedPublisher.displayName\",\"columnid\":\"VerifiedPublisher\"},{\"path\":\"$.appOwnerOrganizationId\",\"columnid\":\"OwnerTenant\"},{\"path\":\"$.signInAudience\",\"columnid\":\"Audience\"},{\"path\":\"$.accountEnabled\",\"columnid\":\"Enabled\"},{\"path\":\"$.homepage\",\"columnid\":\"Homepage\"}]}}]}",
+        "size": 0,
+        "title": "Third-party enterprise applications (service principals) \u2014 attack surface",
+        "noDataMessage": "No service principals returned. Requires the Application.Read.All / Directory.Read.All delegated scope.",
+        "showExportToExcel": true,
+        "queryType": 14,
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "Audience",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "Multiple",
+                    "representation": "orange",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "Personal",
+                    "representation": "orange",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "transparent",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "VerifiedPublisher",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "isEmpty",
+                    "representation": "yellow",
+                    "text": "Unverified"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "transparent",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            }
+          ],
+          "filter": true
+        }
+      },
+      "conditionalVisibilities": [
+        {
+          "parameterName": "domain",
+          "comparison": "isEqualTo",
+          "value": "entra"
+        },
+        {
+          "parameterName": "entraTab",
+          "comparison": "isEqualTo",
+          "value": "inventory"
+        }
+      ],
+      "name": "grid-inventory"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/v1.0/applications?$select=displayName,appId,signInAudience,createdDateTime,passwordCredentials,keyCredentials\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.displayName\",\"columnid\":\"Application\"},{\"path\":\"$.appId\",\"columnid\":\"AppId\"},{\"path\":\"$.signInAudience\",\"columnid\":\"Audience\"},{\"path\":\"$.passwordCredentials[*].keyId\",\"columnid\":\"ClientSecrets\"},{\"path\":\"$.passwordCredentials[*].endDateTime\",\"columnid\":\"SecretExpiry\"},{\"path\":\"$.keyCredentials[*].endDateTime\",\"columnid\":\"CertExpiry\"},{\"path\":\"$.createdDateTime\",\"columnid\":\"Created\"}]}}]}",
+        "size": 0,
+        "title": "Credential hygiene \u2014 client secrets vs. certificates and expiry",
+        "noDataMessage": "No applications returned. Requires the Application.Read.All delegated scope.",
+        "showExportToExcel": true,
+        "queryType": 14,
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ClientSecrets",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "isNotEmpty",
+                    "representation": "orange",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "transparent",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "Audience",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "Multiple",
+                    "representation": "orange",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "Personal",
+                    "representation": "orange",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "transparent",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            }
+          ],
+          "filter": true
+        }
+      },
+      "conditionalVisibilities": [
+        {
+          "parameterName": "domain",
+          "comparison": "isEqualTo",
+          "value": "entra"
+        },
+        {
+          "parameterName": "entraTab",
+          "comparison": "isEqualTo",
+          "value": "creds"
+        }
+      ],
+      "name": "grid-creds"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/v1.0/oauth2PermissionGrants\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.clientId\",\"columnid\":\"ClientSP\"},{\"path\":\"$.consentType\",\"columnid\":\"ConsentType\"},{\"path\":\"$.principalId\",\"columnid\":\"User\"},{\"path\":\"$.resourceId\",\"columnid\":\"ResourceSP\"},{\"path\":\"$.scope\",\"columnid\":\"Scopes\"}]}}]}",
+        "size": 0,
+        "title": "Risky delegated OAuth consents \u2014 tenant-wide admin consent & sensitive scopes",
+        "noDataMessage": "No OAuth2 permission grants returned. Requires the DelegatedPermissionGrant.Read.All / Directory.Read.All delegated scope.",
+        "showExportToExcel": true,
+        "queryType": 14,
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "ConsentType",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "AllPrincipals",
+                    "representation": "redBright",
+                    "text": "{0}{1} (tenant-wide)"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "transparent",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            },
+            {
+              "columnMatch": "Scopes",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "Directory.ReadWrite",
+                    "representation": "redBright",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "Mail.",
+                    "representation": "orange",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "Files.ReadWrite",
+                    "representation": "orange",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "contains",
+                    "thresholdValue": "full_access",
+                    "representation": "redBright",
+                    "text": "{0}{1}"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "transparent",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            }
+          ],
+          "filter": true
+        }
+      },
+      "conditionalVisibilities": [
+        {
+          "parameterName": "domain",
+          "comparison": "isEqualTo",
+          "value": "entra"
+        },
+        {
+          "parameterName": "entraTab",
+          "comparison": "isEqualTo",
+          "value": "consents"
+        }
+      ],
+      "name": "grid-consents"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "**High-privilege Microsoft Graph application (app-only) permissions** granted to apps. Highlighted role IDs are the most dangerous: `19dbc75e-\u2026` Directory.ReadWrite.All \u00b7 `9e3f62cf-\u2026` RoleManagement.ReadWrite.Directory \u00b7 `1bfefb4e-\u2026` Application.ReadWrite.All \u00b7 `06b708a9-\u2026` AppRoleAssignment.ReadWrite.All \u00b7 `e2a3a72e-\u2026` Mail.ReadWrite \u00b7 `75359482-\u2026` Files.ReadWrite.All."
+      },
+      "conditionalVisibilities": [
+        {
+          "parameterName": "domain",
+          "comparison": "isEqualTo",
+          "value": "entra"
+        },
+        {
+          "parameterName": "entraTab",
+          "comparison": "isEqualTo",
+          "value": "approles"
+        }
+      ],
+      "name": "approles-legend"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "{\"version\":\"MsGraphEndpoint/1.0\",\"data\":null,\"headers\":[],\"method\":\"GETARRAY\",\"path\":\"/v1.0/servicePrincipals(appId='00000003-0000-0000-c000-000000000000')/appRoleAssignedTo\",\"urlParams\":[],\"transformers\":[{\"type\":\"jsonpath\",\"settings\":{\"columns\":[{\"path\":\"$.principalDisplayName\",\"columnid\":\"Application\"},{\"path\":\"$.principalId\",\"columnid\":\"AppSP\"},{\"path\":\"$.appRoleId\",\"columnid\":\"AppRoleId\"},{\"path\":\"$.createdDateTime\",\"columnid\":\"Granted\"},{\"path\":\"$.resourceDisplayName\",\"columnid\":\"Resource\"}]}}]}",
+        "size": 0,
+        "title": "Application (app-only) Microsoft Graph permissions \u2014 over-privilege review",
+        "noDataMessage": "No application permissions to Microsoft Graph returned. Requires the Application.Read.All / Directory.Read.All delegated scope.",
+        "showExportToExcel": true,
+        "queryType": 14,
+        "visualization": "table",
+        "gridSettings": {
+          "formatters": [
+            {
+              "columnMatch": "AppRoleId",
+              "formatter": 18,
+              "formatOptions": {
+                "thresholdsOptions": "colors",
+                "thresholdsGrid": [
+                  {
+                    "operator": "==",
+                    "thresholdValue": "19dbc75e-c2e2-444c-a770-ec69d8559fc7",
+                    "representation": "redBright",
+                    "text": "Directory.ReadWrite.All"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8",
+                    "representation": "redBright",
+                    "text": "RoleManagement.ReadWrite.Directory"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9",
+                    "representation": "redBright",
+                    "text": "Application.ReadWrite.All"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "06b708a9-e830-4db3-a914-8e69da51d44f",
+                    "representation": "redBright",
+                    "text": "AppRoleAssignment.ReadWrite.All"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "e2a3a72e-5f79-4c64-b1b1-878b674786c9",
+                    "representation": "orange",
+                    "text": "Mail.ReadWrite"
+                  },
+                  {
+                    "operator": "==",
+                    "thresholdValue": "75359482-378d-4052-8f01-80520e7db3cd",
+                    "representation": "orange",
+                    "text": "Files.ReadWrite.All"
+                  },
+                  {
+                    "operator": "Default",
+                    "representation": "transparent",
+                    "text": "{0}{1}"
+                  }
+                ]
+              }
+            }
+          ],
+          "filter": true
+        }
+      },
+      "conditionalVisibilities": [
+        {
+          "parameterName": "domain",
+          "comparison": "isEqualTo",
+          "value": "entra"
+        },
+        {
+          "parameterName": "entraTab",
+          "comparison": "isEqualTo",
+          "value": "approles"
+        }
+      ],
+      "name": "grid-approles"
+    }
+  ],
+  "fallbackResourceIds": [
+    "Azure Monitor"
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
