@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Third-Party Application Vulnerabilities Workbook</title>
+<meta name="description" content="An Azure Monitor workbook with two domains: Entra ID Applications (Microsoft Graph) and Software Vulnerabilities (Microsoft Defender via Azure Resource Graph)." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-soft: #121a30;
+    --panel: #141d33;
+    --panel-2: #1b264180;
+    --border: #26345a;
+    --text: #e6ecff;
+    --muted: #9fb0d6;
+    --accent: #4f8cff;
+    --accent-2: #7c5cff;
+    --green: #2ecc71;
+    --orange: #ff9f43;
+    --red: #ff6b6b;
+    --code-bg: #0d1426;
+    --radius: 14px;
+    --maxw: 1040px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f7fc;
+      --bg-soft: #ffffff;
+      --panel: #ffffff;
+      --panel-2: #f0f3fb;
+      --border: #dce3f2;
+      --text: #1a2238;
+      --muted: #5a678a;
+      --code-bg: #0d1426;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
+                radial-gradient(900px 500px at -10% 10%, rgba(79,140,255,.18), transparent 55%),
+                var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+
+  header.site {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(10px);
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .2px; }
+  .brand .logo { font-size: 22px; }
+  .nav-links { display: flex; gap: 22px; }
+  .nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; }
+  .nav-links a:hover { color: var(--text); text-decoration: none; }
+  @media (max-width: 760px) { .nav-links { display: none; } }
+
+  .hero { padding: 72px 0 40px; }
+  .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    padding: 5px 12px; border-radius: 999px;
+  }
+  h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.1; margin: 18px 0 12px; letter-spacing: -.5px; }
+  .lede { font-size: 18px; color: var(--muted); max-width: 720px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 18px; border-radius: 10px; font-weight: 600; font-size: 15px;
+    border: 1px solid var(--border); color: var(--text); background: var(--panel);
+    transition: transform .12s ease, border-color .12s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); border-color: var(--accent); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border: none; color: #fff; }
+
+  .badges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted);
+    background: var(--panel-2); border: 1px solid var(--border); padding: 6px 12px; border-radius: 999px;
+  }
+  .badge b { color: var(--text); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.green { background: var(--green); } .dot.blue { background: var(--accent); } .dot.violet { background: var(--accent-2); }
+
+  section { padding: 44px 0; border-top: 1px solid var(--border); }
+  section h2 { font-size: 26px; margin: 0 0 6px; letter-spacing: -.3px; }
+  section .sub { color: var(--muted); margin: 0 0 26px; }
+
+  .grid { display: grid; gap: 18px; }
+  .grid.two { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 760px) { .grid.two { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 22px;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 19px; display: flex; align-items: center; gap: 10px; }
+  .card p { margin: 0 0 14px; color: var(--muted); }
+  .pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag { font-size: 12.5px; padding: 4px 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  table th, table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; }
+  table tr:last-child td { border-bottom: none; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+
+  code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+  code.inline { background: var(--panel-2); border: 1px solid var(--border); padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+  pre {
+    background: var(--code-bg); color: #d6e2ff; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 18px; overflow-x: auto; font-size: 13.5px; line-height: 1.55;
+  }
+  pre .c { color: #6b89c9; } pre .k { color: #7cc5ff; } pre .s { color: #9ff0a8; }
+
+  .steps { counter-reset: step; display: grid; gap: 14px; }
+  .step { display: grid; grid-template-columns: 38px 1fr; gap: 14px; align-items: start; }
+  .step .n {
+    counter-increment: step; width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff;
+  }
+  .step .n::before { content: counter(step); }
+  .step h4 { margin: 4px 0 4px; font-size: 16px; }
+  .step p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+  .render { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; }
+  .swatch.red { background: var(--red); } .swatch.orange { background: var(--orange); }
+
+  footer.site { padding: 40px 0 60px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+  .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; align-items: center; }
+  .note { font-size: 13.5px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 12px 16px; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <div class="brand"><span class="logo">🛡️</span> Third-Party App Vulnerabilities</div>
+    <nav class="nav-links">
+      <a href="#domains">Domains</a>
+      <a href="#contents">Contents</a>
+      <a href="#deploy">Deploy</a>
+      <a href="#entra">Entra ID</a>
+      <a href="#software">Software</a>
+      <a href="#postman">Postman</a>
+      <a href="#tests">Tests</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <section class="hero" style="border-top:none">
+      <span class="eyebrow">Azure Monitor Workbook</span>
+      <h1>Third-Party Application Vulnerabilities</h1>
+      <p class="lede">A single Azure Monitor workbook with two domains — <b>Entra ID Applications</b> queried
+      through Microsoft Graph, and <b>Software Vulnerabilities</b> reported by Microsoft Defender via Azure
+      Resource Graph. Deployable with Bicep, with a matching Postman collection and a Pester test suite.</p>
+
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/chadhage/3rd-party-vulns">⭐ View on GitHub</a>
+        <a class="btn" href="#deploy">🚀 Deploy</a>
+        <a class="btn" href="https://github.com/chadhage/3rd-party-vulns/blob/main/workbook/third-party-vulnerabilities.workbook.json">📄 Workbook JSON</a>
+      </div>
+
+      <div class="badges">
+        <span class="badge"><span class="dot blue"></span> Two domains: <b>Entra&nbsp;ID + Defender</b></span>
+        <span class="badge"><span class="dot violet"></span> <b>5</b> Microsoft Graph endpoints</span>
+        <span class="badge"><span class="dot green"></span> <b>64</b> Pester tests passing</span>
+        <span class="badge"><span class="dot green"></span> Behavioral coverage <b>≥80%</b></span>
+      </div>
+    </section>
+
+    <section id="domains">
+      <h2>Two domains, one selector</h2>
+      <p class="sub">Switch between the two domains using the top-level domain selector inside the workbook.</p>
+      <div class="grid two">
+        <div class="card">
+          <h3>🪪 Entra ID Applications <span class="pill">Microsoft Graph</span></h3>
+          <p>App registrations and enterprise applications: recommendations, inventory, credentials,
+          delegated consents, and app-only Microsoft Graph permissions.</p>
+          <div class="tag-list">
+            <span class="tag">Recommendations</span>
+            <span class="tag">Service principals</span>
+            <span class="tag">Credentials</span>
+            <span class="tag">OAuth2 grants</span>
+            <span class="tag">App permissions</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>🐞 Software Vulnerabilities <span class="pill">Defender / ARG</span></h3>
+          <p>Software CVEs reported by Microsoft Defender Vulnerability Management (MDVM), queried through
+          Azure Resource Graph and filtered to non-Microsoft vendors.</p>
+          <div class="tag-list">
+            <span class="tag">CVE findings</span>
+            <span class="tag">Vulnerable software</span>
+            <span class="tag">Affected devices</span>
+            <span class="tag">End-of-support</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contents">
+      <h2>Repository contents</h2>
+      <p class="sub">Everything needed to deploy, query, and test the workbook.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">workbook/third-party-vulnerabilities.workbook.json</code></td><td>The workbook definition.</td></tr>
+            <tr><td><code class="inline">workbook/deploy.bicep</code></td><td>Deploys the workbook from the JSON file.</td></tr>
+            <tr><td><code class="inline">postman/…postman_collection.json</code></td><td>Postman collection calling the same Microsoft Graph endpoints as the Entra ID tabs.</td></tr>
+            <tr><td><code class="inline">postman/…postman_environment.json</code></td><td>Postman environment template for the collection.</td></tr>
+            <tr><td><code class="inline">tests/Repo.Tests.ps1</code></td><td>Pester tests for the workbook, Bicep, and Postman artifacts.</td></tr>
+            <tr><td><code class="inline">tests/postman/postman.test.mjs</code></td><td>Node behavioral harness executing the embedded Postman JavaScript with coverage.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="deploy">
+      <h2>Deploy the workbook</h2>
+      <p class="sub">Use Bicep, or import the JSON directly in the Azure portal.</p>
+      <div class="grid two">
+        <div class="card">
+          <h3>Option A — Bicep</h3>
+          <pre><span class="c"># Create a resource group, then deploy</span>
+az group create --name rg-security-workbooks --location westeurope
+
+az deployment group create `
+  --resource-group rg-security-workbooks `
+  --template-file workbook/deploy.bicep</pre>
+          <p style="margin-top:14px">Outputs <code class="inline">workbookResourceId</code> and <code class="inline">workbookName</code>.</p>
+        </div>
+        <div class="card">
+          <h3>Option B — Portal import</h3>
+          <div class="steps">
+            <div class="step"><div class="n"></div><div><h4>Open the Advanced Editor</h4><p>Azure Portal → Monitor → Workbooks → + New → Advanced Editor (<code class="inline">&lt;/&gt;</code>).</p></div></div>
+            <div class="step"><div class="n"></div><div><h4>Paste the JSON</h4><p>Paste the contents of <code class="inline">workbook/third-party-vulnerabilities.workbook.json</code>.</p></div></div>
+            <div class="step"><div class="n"></div><div><h4>Save</h4><p>Apply → Done Editing → Save.</p></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="note"><b>Prerequisites:</b> Azure CLI signed in (<code class="inline">az login</code>). Entra domain needs Microsoft Graph delegated read (Global Reader or Security Reader). The Entra recommendations tab requires Entra ID P1/P2. The Software domain needs Defender for Servers Plan 2 / MDVM and Reader on the selected subscriptions. Saving needs Monitoring Contributor or Workbook Contributor.</div>
+    </section>
+
+    <section id="entra">
+      <h2>Entra ID Applications</h2>
+      <p class="sub">Each tab runs a Microsoft Graph query and renders the result as a table.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tab</th><th>Graph endpoint</th></tr></thead>
+          <tbody>
+            <tr><td><b>Entra recommendations</b></td><td><code class="inline">GET /beta/directory/recommendations</code></td></tr>
+            <tr><td><b>Enterprise application inventory</b></td><td><code class="inline">GET /v1.0/servicePrincipals</code></td></tr>
+            <tr><td><b>Application credentials</b></td><td><code class="inline">GET /v1.0/applications</code></td></tr>
+            <tr><td><b>Delegated permission grants</b></td><td><code class="inline">GET /v1.0/oauth2PermissionGrants</code></td></tr>
+            <tr><td><b>Microsoft Graph app permissions</b></td><td><code class="inline">GET /v1.0/servicePrincipals(appId='00000003-…')/appRoleAssignedTo</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">High-privilege Microsoft Graph app roles are highlighted:
+        <span class="render"><span class="swatch red"></span> Directory.ReadWrite.All, RoleManagement.ReadWrite.Directory, Application.ReadWrite.All, AppRoleAssignment.ReadWrite.All</span>
+        &nbsp;·&nbsp;
+        <span class="render"><span class="swatch orange"></span> Mail.ReadWrite, Files.ReadWrite.All</span>.
+        Only app-only permissions against Microsoft Graph are listed; other APIs (SharePoint, Exchange, Key Vault) are not shown.
+      </div>
+    </section>
+
+    <section id="software">
+      <h2>Software Vulnerabilities (Defender)</h2>
+      <p class="sub">Set the Subscriptions, Severity, and Vendor filters, then select a tab.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tab</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td><b>CVE Findings</b></td><td>Each CVE finding with severity, CVSS, software, vendor, patchability, and resource.</td></tr>
+            <tr><td><b>Vulnerable Software</b></td><td>Software inventory aggregated by vendor/product with device counts.</td></tr>
+            <tr><td><b>Affected Devices</b></td><td>Devices with Critical/High counts and distinct CVE counts.</td></tr>
+            <tr><td><b>End-of-Support Software</b></td><td>Products reported as unsupported or approaching end of support.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="color:var(--muted); margin-top:16px">Data sources (Azure Resource Graph): <code class="inline">microsoft.security/assessments/subassessments</code> for CVE findings and <code class="inline">microsoft.security/softwareinventories</code> for inventory and end-of-support. Queries use <code class="inline">coalesce(…)</code> for property names that vary by plan and filter out vendors containing <code class="inline">microsoft</code>.</p>
+    </section>
+
+    <section id="postman">
+      <h2>Microsoft Graph via Postman</h2>
+      <p class="sub">Call the same five Graph endpoints from a client using app-only (client-credentials) auth.</p>
+      <div class="grid two">
+        <div class="card">
+          <h3>Setup</h3>
+          <div class="steps">
+            <div class="step"><div class="n"></div><div><h4>Register an app</h4><p>Add a client secret and the Graph <b>application</b> permissions DirectoryRecommendations.Read.All, Application.Read.All, Directory.Read.All. Grant admin consent.</p></div></div>
+            <div class="step"><div class="n"></div><div><h4>Import both files</h4><p>Import the collection and environment from <code class="inline">postman/</code>.</p></div></div>
+            <div class="step"><div class="n"></div><div><h4>Set variables</h4><p>Set <code class="inline">tenantId</code>, <code class="inline">clientId</code>, and <code class="inline">clientSecret</code> in the environment.</p></div></div>
+            <div class="step"><div class="n"></div><div><h4>Send a request</h4><p>The pre-request script fetches and caches an app-only bearer token automatically.</p></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Permission models</h3>
+          <p><b>Workbook (delegated):</b> runs as the signed-in user. A directory role such as Global Reader or Security Reader is enough — no app registration or secret.</p>
+          <p><b>Postman (application):</b> runs as an app registration with app-only permissions and a client secret, not tied to a user, requiring admin consent.</p>
+          <p style="margin:0">Pagination: responses return a <code class="inline">value</code> array; when more results exist an <code class="inline">@odata.nextLink</code> is stored in <code class="inline">nextLink</code>. Send the <b>Next page</b> request until it is no longer set.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="tests">
+      <h2>Tests &amp; coverage</h2>
+      <p class="sub">Pester validates the artifacts; a Node harness executes the embedded Postman JavaScript with enforced coverage.</p>
+      <div class="grid two">
+        <div class="card">
+          <h3>Run the suite</h3>
+          <pre><span class="c"># From the repository root</span>
+Invoke-Pester -Path ./tests -Output Detailed</pre>
+          <p style="margin-top:14px">Requires PowerShell 7+, Pester 5+, Node.js, and Azure CLI (to compile the Bicep template).</p>
+        </div>
+        <div class="card">
+          <h3>What is covered</h3>
+          <div class="tag-list">
+            <span class="tag">JSON validity (strict)</span>
+            <span class="tag">Workbook structure</span>
+            <span class="tag">Content quality</span>
+            <span class="tag">Bicep compile &amp; settings</span>
+            <span class="tag">Postman collection</span>
+            <span class="tag">README accuracy</span>
+            <span class="tag">Behavioral coverage ≥80%</span>
+          </div>
+          <p style="margin-top:16px">The behavioral harness runs the embedded Postman scripts against mocks at 100% line, ~90% branch, and 100% function coverage, enforced at a ≥80% threshold.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap foot">
+    <div>Third-Party Application Vulnerabilities Workbook · MIT License</div>
+    <div><a href="https://github.com/chadhage/3rd-party-vulns">github.com/chadhage/3rd-party-vulns</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
