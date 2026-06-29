@@ -1,0 +1,249 @@
+{
+  "info": {
+    "_postman_id": "6b6f7d2e-1a3c-4f5b-9c10-3a2e7d8b4c01",
+    "name": "Third-Party Vulnerabilities - Microsoft Graph",
+    "description": "Calls the same Microsoft Graph endpoints used by the Azure Monitor workbook in this repo, so you can retrieve Entra ID application posture data directly from a client.\n\nAuthentication: OAuth 2.0 client credentials (app-only). The collection pre-request script requests an access token from Microsoft identity platform and caches it in the `access_token` environment variable until it expires. The collection sends `Authorization: Bearer {{access_token}}` on every request.\n\nApp registration setup (one time):\n1. Entra ID > App registrations > New registration.\n2. Certificates & secrets > New client secret. Copy the value into the `clientSecret` environment variable.\n3. API permissions > Add a permission > Microsoft Graph > Application permissions. Add: DirectoryRecommendations.Read.All, Application.Read.All, Directory.Read.All. Then Grant admin consent.\n4. Copy the Directory (tenant) ID and Application (client) ID into `tenantId` and `clientId`.\n\nDelegated alternative: if you cannot grant application permissions, replace the collection auth with Postman's OAuth 2.0 Authorization Code flow using the same scopes as delegated permissions, then remove or disable the pre-request script.\n\nPagination: Graph returns a page plus an `@odata.nextLink` when more results exist. Each request's test script stores `@odata.nextLink` in the `nextLink` environment variable and logs the page size. To fetch the next page, send a GET to the value of `nextLink`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Acquire an app-only access token if none is cached or it has expired.",
+          "const expiresAt = Number(pm.environment.get('token_expires_at') || 0);",
+          "const hasToken = !!pm.environment.get('access_token');",
+          "if (hasToken && Date.now() < expiresAt) { return; }",
+          "",
+          "const tenantId = pm.environment.get('tenantId');",
+          "const clientId = pm.environment.get('clientId');",
+          "const clientSecret = pm.environment.get('clientSecret');",
+          "if (!tenantId || !clientId || !clientSecret) {",
+          "    throw new Error('Set tenantId, clientId and clientSecret in the environment.');",
+          "}",
+          "",
+          "pm.sendRequest({",
+          "    url: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,",
+          "    method: 'POST',",
+          "    header: { 'Content-Type': 'application/x-www-form-urlencoded' },",
+          "    body: {",
+          "        mode: 'urlencoded',",
+          "        urlencoded: [",
+          "            { key: 'client_id', value: clientId },",
+          "            { key: 'client_secret', value: clientSecret },",
+          "            { key: 'scope', value: 'https://graph.microsoft.com/.default' },",
+          "            { key: 'grant_type', value: 'client_credentials' }",
+          "        ]",
+          "    }",
+          "}, (err, res) => {",
+          "    if (err) { console.error('Token request failed', err); return; }",
+          "    const json = res.json();",
+          "    if (!json.access_token) { console.error('No access_token in response', json); return; }",
+          "    pm.environment.set('access_token', json.access_token);",
+          "    pm.environment.set('token_expires_at', String(Date.now() + (Number(json.expires_in) - 60) * 1000));",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "graphBase",
+      "value": "https://graph.microsoft.com",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Entra recommendations",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "const arr = json.value || [];",
+              "console.log('recommendations on this page:', arr.length);",
+              "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
+              "else { pm.environment.unset('nextLink'); }",
+              "pm.test('200 OK', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{graphBase}}/beta/directory/recommendations",
+          "host": ["{{graphBase}}"],
+          "path": ["beta", "directory", "recommendations"]
+        },
+        "description": "Entra recommendations with status (active, completedBySystem, completedByUser, dismissed, postponed), priority, and actionSteps. Returns data only when Microsoft Entra ID P1 or P2 is licensed. App permission: DirectoryRecommendations.Read.All."
+      }
+    },
+    {
+      "name": "2. Service principals (app inventory)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "const arr = json.value || [];",
+              "console.log('service principals on this page:', arr.length);",
+              "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
+              "else { pm.environment.unset('nextLink'); }",
+              "pm.test('200 OK', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{graphBase}}/v1.0/servicePrincipals?$filter=servicePrincipalType eq 'Application'&$select=displayName,appId,appOwnerOrganizationId,accountEnabled,servicePrincipalType,homepage,verifiedPublisher,publisherName,signInAudience",
+          "host": ["{{graphBase}}"],
+          "path": ["v1.0", "servicePrincipals"],
+          "query": [
+            { "key": "$filter", "value": "servicePrincipalType eq 'Application'" },
+            { "key": "$select", "value": "displayName,appId,appOwnerOrganizationId,accountEnabled,servicePrincipalType,homepage,verifiedPublisher,publisherName,signInAudience" }
+          ]
+        },
+        "description": "Enterprise applications (service principals) with publisher, verifiedPublisher, appOwnerOrganizationId, signInAudience, and accountEnabled. App permission: Application.Read.All or Directory.Read.All."
+      }
+    },
+    {
+      "name": "3. Applications (credentials)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "const arr = json.value || [];",
+              "console.log('applications on this page:', arr.length);",
+              "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
+              "else { pm.environment.unset('nextLink'); }",
+              "pm.test('200 OK', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{graphBase}}/v1.0/applications?$select=displayName,appId,signInAudience,createdDateTime,passwordCredentials,keyCredentials",
+          "host": ["{{graphBase}}"],
+          "path": ["v1.0", "applications"],
+          "query": [
+            { "key": "$select", "value": "displayName,appId,signInAudience,createdDateTime,passwordCredentials,keyCredentials" }
+          ]
+        },
+        "description": "App registrations with passwordCredentials (client secrets) and keyCredentials (certificates), including endDateTime values. App permission: Application.Read.All."
+      }
+    },
+    {
+      "name": "4. OAuth2 permission grants (delegated consents)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "const arr = json.value || [];",
+              "console.log('grants on this page:', arr.length);",
+              "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
+              "else { pm.environment.unset('nextLink'); }",
+              "pm.test('200 OK', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{graphBase}}/v1.0/oauth2PermissionGrants",
+          "host": ["{{graphBase}}"],
+          "path": ["v1.0", "oauth2PermissionGrants"]
+        },
+        "description": "Delegated OAuth2 permission grants. consentType is AllPrincipals (tenant-wide) or Principal (per-user). clientId and resourceId are service principal object IDs. App permission: Directory.Read.All or DelegatedPermissionGrant.Read.All."
+      }
+    },
+    {
+      "name": "5. App role assignments to Microsoft Graph",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "const arr = json.value || [];",
+              "console.log('app role assignments on this page:', arr.length);",
+              "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
+              "else { pm.environment.unset('nextLink'); }",
+              "pm.test('200 OK', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{graphBase}}/v1.0/servicePrincipals(appId='00000003-0000-0000-c000-000000000000')/appRoleAssignedTo",
+          "host": ["{{graphBase}}"],
+          "path": ["v1.0", "servicePrincipals(appId='00000003-0000-0000-c000-000000000000')", "appRoleAssignedTo"]
+        },
+        "description": "Application (app-only) Microsoft Graph permissions granted to apps. appRoleId identifies the permission (see the AppRoleId reference table in the README). App permission: Application.Read.All or Directory.Read.All."
+      }
+    },
+    {
+      "name": "Next page (follow @odata.nextLink)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "const arr = json.value || [];",
+              "console.log('items on this page:', arr.length);",
+              "if (json['@odata.nextLink']) { pm.environment.set('nextLink', json['@odata.nextLink']); console.log('nextLink:', json['@odata.nextLink']); }",
+              "else { pm.environment.unset('nextLink'); console.log('last page'); }",
+              "pm.test('200 OK', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{nextLink}}",
+          "host": ["{{nextLink}}"]
+        },
+        "description": "Sends a GET to the value of the nextLink environment variable, which the other requests set from @odata.nextLink. Run repeatedly until nextLink is no longer set to page through all results."
+      }
+    }
+  ]
+}

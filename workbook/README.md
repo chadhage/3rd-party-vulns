@@ -14,6 +14,8 @@ An Azure Monitor workbook with two domains, selected from a top-level domain sel
 | `third-party-vulnerabilities.workbook.json` | The workbook definition. |
 | `deploy.bicep` | Deploys the workbook from the JSON file. |
 | `README.md` | This guide. |
+| `../postman/third-party-vulnerabilities.postman_collection.json` | Postman collection that calls the same Microsoft Graph endpoints as the Entra ID tabs. |
+| `../postman/third-party-vulnerabilities.postman_environment.json` | Postman environment template for the collection. |
 
 ## Prerequisites
 
@@ -128,3 +130,33 @@ Data sources (Azure Resource Graph):
 - The Defender queries use `coalesce(...)` to read `cveId`/`cve`, `softwareName`/`packageName`, and
   `cvss30Score`/`cvssScore`/`cvss`, because these property names vary by plan.
 - To include Microsoft products, remove the `!contains 'microsoft'` filters in the software queries.
+
+## Alternative — Microsoft Graph via Postman
+
+The `postman/` folder contains a collection and environment that call the same five Graph endpoints used by
+the Entra ID tabs, so you can retrieve the data from a client instead of the workbook.
+
+Setup:
+
+1. Register an app in **Entra ID → App registrations**. Add a client secret. Add the Microsoft Graph
+   **application** permissions `DirectoryRecommendations.Read.All`, `Application.Read.All`,
+   `Directory.Read.All`, then grant admin consent.
+2. In Postman, import both files from `postman/`.
+3. Select the **Third-Party Vulnerabilities - Graph** environment and set `tenantId`, `clientId`, and
+   `clientSecret`.
+4. Send any request. The collection pre-request script requests an app-only token, caches it in
+   `access_token`, and sends it as a bearer token.
+
+Requests:
+
+| Request | Endpoint |
+| --- | --- |
+| 1. Entra recommendations | `GET /beta/directory/recommendations` |
+| 2. Service principals (app inventory) | `GET /v1.0/servicePrincipals` |
+| 3. Applications (credentials) | `GET /v1.0/applications` |
+| 4. OAuth2 permission grants (delegated consents) | `GET /v1.0/oauth2PermissionGrants` |
+| 5. App role assignments to Microsoft Graph | `GET /v1.0/servicePrincipals(appId='00000003-…')/appRoleAssignedTo` |
+
+Each response returns a `value` array. When more results exist, the response includes `@odata.nextLink`;
+the request's test script stores it in the `nextLink` environment variable. Send the **Next page** request
+to retrieve the following page, and repeat until `nextLink` is no longer set.
