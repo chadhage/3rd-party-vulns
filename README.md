@@ -1,5 +1,14 @@
 # Third-Party Application Vulnerabilities Workbook
 
+> ## ⚠️ Disclaimer
+>
+> **This repository and its contents are provided for reference purposes only.** Any use of this
+> repository and its contents is the **sole responsibility of the individual or organization using it**.
+> The code is provided **as-is** and **where-is**, without warranty of any kind, express or implied,
+> including but not limited to warranties of merchantability, fitness for a particular purpose, and
+> non-infringement. The authors and contributors accept **no liability** for any loss, damage, or claim
+> arising from the use of this repository.
+
 An Azure Monitor workbook with two domains, selected from a top-level domain selector:
 
 1. **Entra ID Applications** — app registrations and enterprise applications, queried through Microsoft
@@ -199,12 +208,3 @@ Invoke-Pester -Path ./tests -Output Detailed
 ```
 
 The run reports the number of tests passed and failed.
-
-## Disclaimer
-
-This repository and its contents are provided for reference purposes only. Any use of this
-repository and its contents is the sole responsibility of the individual or organization using
-it. The code is provided **as-is** and **where-is**, without warranty of any kind, express or
-implied, including but not limited to warranties of merchantability, fitness for a particular
-purpose, and non-infringement. The authors and contributors accept no liability for any loss,
-damage, or claim arising from the use of this repository.
