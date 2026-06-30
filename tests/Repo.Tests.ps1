@@ -136,6 +136,46 @@ Describe 'Reviewer remediations' {
     }
 }
 
+Describe 'Data robustness' {
+    BeforeAll {
+        $script:Findings = ($Workbook.items | Where-Object { $_.name -eq 'grid-findings' }).content.query
+        $script:Devices  = ($Workbook.items | Where-Object { $_.name -eq 'grid-devices' }).content.query
+    }
+    It 'extracts the finding Resource independent of ARM id depth (no hard-coded [8])' {
+        $Findings | Should -Match 'array_length\(_idParts\)'
+        $Findings | Should -Not -Match "split\(tostring\(properties\.resourceDetails\.id\), '/'\)\[8\]"
+    }
+    It 'extracts the Device independent of ARM id depth (no hard-coded [8])' {
+        $Devices | Should -Match 'array_length\(_dParts\)'
+        $Devices | Should -Not -Match "split\(resourceId, '/'\)\[8\]"
+    }
+    It 'reads CVSS with a null-safe coalesce so a missing score is blank, not zero' {
+        $Findings | Should -Match 'coalesce\(todouble\(ad\.cvss30Score\), todouble\(ad\.cvssScore\), todouble\(ad\.cvss\)\)'
+    }
+    It 'deduplicates device CVE/severity rows before counting' {
+        $Devices | Should -Match '\| summarize by resourceId, device, vendor, cve, severity'
+    }
+    It 'gives every Entra and Defender grid an honest empty-state message' {
+        $grids = $Workbook.items | Where-Object { $_.name -like 'grid-*' -and $_.content.query }
+        $grids.Count | Should -Be 9
+        foreach ($g in $grids) {
+            $g.content.noDataMessage | Should -Not -BeNullOrEmpty -Because "$($g.name) must explain why a result can be empty"
+        }
+    }
+    It 'passes the Microsoft Graph transform contract tests (real column paths vs fixtures)' {
+        $harness = Join-Path $Repo 'tests/graph-transform.test.mjs'
+        Test-Path $harness | Should -BeTrue
+        Push-Location $Repo
+        try {
+            $null = node --test $harness 2>&1
+            $LASTEXITCODE | Should -Be 0 -Because 'the workbook column paths must project the documented columns'
+        }
+        finally {
+            Pop-Location
+        }
+    }
+}
+
 Describe 'Bicep template' {
     It 'compiles with az bicep build' {
         $null = az bicep build --file $BicepPath --stdout 2>$null
