@@ -113,6 +113,14 @@
   .tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
   .tag { font-size: 12.5px; padding: 4px 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); }
 
+  .yn { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 9px; }
+  .yn li { position: relative; padding-left: 28px; color: var(--text); font-size: 14.5px; line-height: 1.5; }
+  .yn li::before { position: absolute; left: 0; top: -1px; font-weight: 800; font-size: 15px; }
+  .yn.is li::before { content: '\2713'; color: var(--green); }
+  .yn.isnt li::before { content: '\2715'; color: var(--red); }
+  .card.is { border-color: color-mix(in srgb, var(--green) 40%, var(--border)); }
+  .card.isnt { border-color: color-mix(in srgb, var(--red) 40%, var(--border)); }
+
   table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
   table th, table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
   table th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; }
@@ -153,6 +161,7 @@
   <div class="wrap nav">
     <div class="brand"><span class="logo">🛡️</span> Third-Party App Vulnerabilities</div>
     <nav class="nav-links">
+      <a href="#scope">Scope</a>
       <a href="#domains">Domains</a>
       <a href="#contents">Contents</a>
       <a href="#deploy">Deploy</a>
@@ -184,6 +193,33 @@
         <span class="badge"><span class="dot violet"></span> <b>5</b> Microsoft Graph endpoints</span>
         <span class="badge"><span class="dot green"></span> <b>75</b> Pester tests passing</span>
         <span class="badge"><span class="dot green"></span> Behavioral coverage <b>≥80%</b></span>
+      </div>
+    </section>
+
+    <section id="scope">
+      <h2>What this repo is &mdash; and isn't</h2>
+      <p class="sub">Read this first. The tool reports two different kinds of data, and only one of them is &ldquo;vulnerabilities.&rdquo;</p>
+      <div class="grid two">
+        <div class="card is">
+          <h3>✅ What this repo <span class="pill">is</span></h3>
+          <ul class="yn is">
+            <li>A read-only Azure Monitor workbook that <b>reports</b> two data sets behind one domain selector.</li>
+            <li><b>Software domain:</b> genuine third-party <b>CVE findings</b> from Microsoft Defender Vulnerability Management, via Azure Resource Graph, scoped to non-Microsoft vendors.</li>
+            <li><b>Entra domain:</b> an <b>inventory &amp; posture</b> view of app registrations, enterprise apps, credentials, delegated consents, and app-only Microsoft Graph permissions.</li>
+            <li>Deployable as code (Bicep), with a matching Postman collection and a 75-test suite (including Graph transform contract tests).</li>
+            <li>Least-privilege and low blast radius: delegated read in the workbook; no data is written or exported.</li>
+          </ul>
+        </div>
+        <div class="card isnt">
+          <h3>⛔ What this repo <span class="pill">isn't</span></h3>
+          <ul class="yn isnt">
+            <li><b>Not</b> a vulnerability scanner for Entra/Graph &mdash; Microsoft Graph does <b>not</b> expose app CVEs; the Entra tabs are inventory and configuration, not findings.</li>
+            <li><b>Not</b> a vulnerability-management product: no risk scoring, prioritization, remediation, ticketing, alerting, or tracking.</li>
+            <li><b>Not</b> a complete permissions audit &mdash; the app-permissions tab covers Microsoft Graph only, not SharePoint, Exchange, or Key Vault.</li>
+            <li><b>Not</b> turnkey for every tenant: recommendations need Entra ID P1/P2 (beta endpoint) and CVEs need Defender for Servers P2 / MDVM onboarding.</li>
+            <li><b>Not</b> a credential-expiry monitor &mdash; secret/certificate end-dates are listed, but not flagged as expired or expiring.</li>
+          </ul>
+        </div>
       </div>
     </section>
 
