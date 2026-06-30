@@ -182,7 +182,7 @@
       <div class="badges">
         <span class="badge"><span class="dot blue"></span> Two domains: <b>Entra&nbsp;ID + Defender</b></span>
         <span class="badge"><span class="dot violet"></span> <b>5</b> Microsoft Graph endpoints</span>
-        <span class="badge"><span class="dot green"></span> <b>64</b> Pester tests passing</span>
+        <span class="badge"><span class="dot green"></span> <b>75</b> Pester tests passing</span>
         <span class="badge"><span class="dot green"></span> Behavioral coverage <b>≥80%</b></span>
       </div>
     </section>
@@ -229,6 +229,7 @@
             <tr><td><code class="inline">postman/…postman_collection.json</code></td><td>Postman collection calling the same Microsoft Graph endpoints as the Entra ID tabs.</td></tr>
             <tr><td><code class="inline">postman/…postman_environment.json</code></td><td>Postman environment template for the collection.</td></tr>
             <tr><td><code class="inline">tests/Repo.Tests.ps1</code></td><td>Pester tests for the workbook, Bicep, and Postman artifacts.</td></tr>
+            <tr><td><code class="inline">tests/graph-transform.test.mjs</code></td><td>Data-contract tests evaluating the workbook's real Graph jsonpath column paths against fixtures.</td></tr>
             <tr><td><code class="inline">tests/postman/postman.test.mjs</code></td><td>Node behavioral harness executing the embedded Postman JavaScript with coverage.</td></tr>
           </tbody>
         </table>
@@ -339,6 +340,8 @@ Invoke-Pester -Path ./tests -Output Detailed</pre>
             <span class="tag">JSON validity (strict)</span>
             <span class="tag">Workbook structure</span>
             <span class="tag">Content quality</span>
+            <span class="tag">Data robustness invariants</span>
+            <span class="tag">Graph transform contract</span>
             <span class="tag">Bicep compile &amp; settings</span>
             <span class="tag">Postman collection</span>
             <span class="tag">README accuracy</span>
