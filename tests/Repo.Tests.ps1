@@ -109,6 +109,33 @@ Describe 'Workbook content quality' {
     }
 }
 
+Describe 'Reviewer remediations' {
+    It 'builds a working NVD link for CVE findings instead of a bare-id no-op' {
+        $grid = $Workbook.items | Where-Object { $_.name -eq 'grid-findings' } | Select-Object -First 1
+        $grid.content.query | Should -Match 'nvd\.nist\.gov/vuln/detail/'
+        $fmt = $grid.content.gridSettings.formatters | Where-Object { $_.columnMatch -eq 'NVD' } | Select-Object -First 1
+        $fmt.formatter | Should -Be 7
+        $fmt.formatOptions.linkTarget | Should -Be 'Url'
+    }
+    It 'defaults the Severity filter to Critical and High, matching the dropdown selection' {
+        $sev = ($Workbook.items | Where-Object { $_.name -eq 'parameters' }).content.parameters |
+            Where-Object { $_.name -eq 'Severity' } | Select-Object -First 1
+        ($sev.value -join ',') | Should -Be 'Critical,High'
+    }
+    It 'scopes the summary severity tiles to the Vendor filter' {
+        $tiles = $Workbook.items | Where-Object { $_.name -eq 'tiles-by-severity' } | Select-Object -First 1
+        $tiles.content.query | Should -Match 'vendor in~ \(\{Vendor\}\)'
+    }
+    It 'derives the finding Resource from the assessed resource id' {
+        $grid = $Workbook.items | Where-Object { $_.name -eq 'grid-findings' } | Select-Object -First 1
+        $grid.content.query | Should -Match 'split\(tostring\(properties\.resourceDetails\.id\)'
+    }
+    It 'declares the domain parameter before the software-filter block' {
+        $names = @($Workbook.items.name)
+        [array]::IndexOf($names, 'hidden-defaults') | Should -BeLessThan ([array]::IndexOf($names, 'parameters'))
+    }
+}
+
 Describe 'Bicep template' {
     It 'compiles with az bicep build' {
         $null = az bicep build --file $BicepPath --stdout 2>$null

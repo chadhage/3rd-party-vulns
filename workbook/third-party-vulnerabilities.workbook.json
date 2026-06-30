@@ -14,6 +14,41 @@
         "version": "KqlParameterItem/1.0",
         "parameters": [
           {
+            "id": "param-domain",
+            "version": "KqlParameterItem/1.0",
+            "name": "domain",
+            "type": 1,
+            "isHiddenWhenLocked": true,
+            "value": "entra"
+          },
+          {
+            "id": "param-entratab",
+            "version": "KqlParameterItem/1.0",
+            "name": "entraTab",
+            "type": 1,
+            "isHiddenWhenLocked": true,
+            "value": "recs"
+          },
+          {
+            "id": "param-selectedtab",
+            "version": "KqlParameterItem/1.0",
+            "name": "selectedTab",
+            "type": 1,
+            "isHiddenWhenLocked": true,
+            "value": "findings"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0
+      },
+      "name": "hidden-defaults"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
             "id": "param-subscriptions",
             "version": "KqlParameterItem/1.0",
             "name": "Subscriptions",
@@ -49,7 +84,8 @@
             },
             "jsonData": "[\r\n {\"value\":\"Critical\",\"label\":\"Critical\",\"selected\":true},\r\n {\"value\":\"High\",\"label\":\"High\",\"selected\":true},\r\n {\"value\":\"Medium\",\"label\":\"Medium\"},\r\n {\"value\":\"Low\",\"label\":\"Low\"}\r\n]",
             "value": [
-              "value::all"
+              "Critical",
+              "High"
             ]
           },
           {
@@ -88,41 +124,6 @@
         "value": "software"
       },
       "name": "parameters"
-    },
-    {
-      "type": 9,
-      "content": {
-        "version": "KqlParameterItem/1.0",
-        "parameters": [
-          {
-            "id": "param-domain",
-            "version": "KqlParameterItem/1.0",
-            "name": "domain",
-            "type": 1,
-            "isHiddenWhenLocked": true,
-            "value": "entra"
-          },
-          {
-            "id": "param-entratab",
-            "version": "KqlParameterItem/1.0",
-            "name": "entraTab",
-            "type": 1,
-            "isHiddenWhenLocked": true,
-            "value": "recs"
-          },
-          {
-            "id": "param-selectedtab",
-            "version": "KqlParameterItem/1.0",
-            "name": "selectedTab",
-            "type": 1,
-            "isHiddenWhenLocked": true,
-            "value": "findings"
-          }
-        ],
-        "style": "pills",
-        "queryType": 0
-      },
-      "name": "hidden-defaults"
     },
     {
       "type": 11,
@@ -178,7 +179,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "securityresources\r\n| where type =~ 'microsoft.security/assessments/subassessments'\r\n| extend ad = properties.additionalData\r\n| extend assessedType = tostring(ad.assessedResourceType)\r\n| where assessedType in~ ('ServerVulnerabilityAssessment', 'ContainerRegistryVulnerability', 'ContainerImageVulnerability')\r\n| extend vendor = tostring(coalesce(ad.vendor, 'Unknown'))\r\n| where tolower(vendor) !contains 'microsoft'\r\n| extend severity = tostring(properties.status.severity)\r\n| where severity in~ ({Severity}) or '*' in ({Severity})\r\n| summarize Findings = count() by severity\r\n| order by case(severity =~ 'Critical', 0, severity =~ 'High', 1, severity =~ 'Medium', 2, severity =~ 'Low', 3, 4) asc",
+        "query": "securityresources\r\n| where type =~ 'microsoft.security/assessments/subassessments'\r\n| extend ad = properties.additionalData\r\n| extend assessedType = tostring(ad.assessedResourceType)\r\n| where assessedType in~ ('ServerVulnerabilityAssessment', 'ContainerRegistryVulnerability', 'ContainerImageVulnerability')\r\n| extend vendor = tostring(coalesce(ad.vendor, 'Unknown'))\r\n| where tolower(vendor) !contains 'microsoft'\r\n| extend severity = tostring(properties.status.severity)\r\n| where severity in~ ({Severity}) or '*' in ({Severity})\r\n| where vendor in~ ({Vendor}) or '*' in ({Vendor})\r\n| summarize Findings = count() by severity\r\n| order by case(severity =~ 'Critical', 0, severity =~ 'High', 1, severity =~ 'Medium', 2, severity =~ 'Low', 3, 4) asc",
         "size": 4,
         "title": "Third-party CVE findings by severity",
         "queryType": 10,
@@ -301,7 +302,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "securityresources\r\n| where type =~ 'microsoft.security/assessments/subassessments'\r\n| extend ad = properties.additionalData\r\n| extend assessedType = tostring(ad.assessedResourceType)\r\n| where assessedType in~ ('ServerVulnerabilityAssessment', 'ContainerRegistryVulnerability', 'ContainerImageVulnerability')\r\n| extend vendor = tostring(coalesce(ad.vendor, 'Unknown'))\r\n| where tolower(vendor) !contains 'microsoft'\r\n| where vendor in~ ({Vendor}) or '*' in ({Vendor})\r\n| extend severity = tostring(properties.status.severity)\r\n| where severity in~ ({Severity}) or '*' in ({Severity})\r\n| extend cve = tostring(coalesce(ad.cveId, ad.cve, properties.id))\r\n| extend software = tostring(coalesce(ad.softwareName, ad.packageName, properties.displayName))\r\n| extend cvss = todouble(coalesce(ad.cvss30Score, ad.cvssScore, ad.cvss))\r\n| extend patchable = tostring(ad.patchable)\r\n| extend resourceName = tostring(split(id, '/')[8])\r\n| project Severity = severity, CVE = cve, Software = software, Vendor = vendor, ['CVSS'] = cvss, Patchable = patchable, Resource = resourceName, Finding = tostring(properties.displayName), ResourceId = tostring(properties.resourceDetails.id)\r\n| order by case(Severity =~ 'Critical', 0, Severity =~ 'High', 1, Severity =~ 'Medium', 2, Severity =~ 'Low', 3, 4) asc, ['CVSS'] desc",
+        "query": "securityresources\r\n| where type =~ 'microsoft.security/assessments/subassessments'\r\n| extend ad = properties.additionalData\r\n| extend assessedType = tostring(ad.assessedResourceType)\r\n| where assessedType in~ ('ServerVulnerabilityAssessment', 'ContainerRegistryVulnerability', 'ContainerImageVulnerability')\r\n| extend vendor = tostring(coalesce(ad.vendor, 'Unknown'))\r\n| where tolower(vendor) !contains 'microsoft'\r\n| where vendor in~ ({Vendor}) or '*' in ({Vendor})\r\n| extend severity = tostring(properties.status.severity)\r\n| where severity in~ ({Severity}) or '*' in ({Severity})\r\n| extend cve = tostring(coalesce(ad.cveId, ad.cve, properties.id))\r\n| extend software = tostring(coalesce(ad.softwareName, ad.packageName, properties.displayName))\r\n| extend cvss = todouble(coalesce(ad.cvss30Score, ad.cvssScore, ad.cvss))\r\n| extend patchable = tostring(ad.patchable)\r\n| extend resourceName = tostring(split(tostring(properties.resourceDetails.id), '/')[8])\r\n| project Severity = severity, CVE = cve, NVD = iff(cve startswith 'CVE-', strcat('https://nvd.nist.gov/vuln/detail/', cve), ''), Software = software, Vendor = vendor, ['CVSS'] = cvss, Patchable = patchable, Resource = resourceName, Finding = tostring(properties.displayName), ResourceId = tostring(properties.resourceDetails.id)\r\n| order by case(Severity =~ 'Critical', 0, Severity =~ 'High', 1, Severity =~ 'Medium', 2, Severity =~ 'Low', 3, 4) asc, ['CVSS'] desc",
         "size": 0,
         "title": "Third-party CVE findings (Defender Vulnerability Management)",
         "showExportToExcel": true,
@@ -365,12 +366,12 @@
               }
             },
             {
-              "columnMatch": "CVE",
+              "columnMatch": "NVD",
               "formatter": 7,
               "formatOptions": {
                 "linkTarget": "Url",
                 "linkIsContextBlade": false,
-                "showIcon": false
+                "showIcon": true
               }
             },
             {
