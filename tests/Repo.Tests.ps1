@@ -155,7 +155,7 @@ Describe 'Data robustness' {
     It 'deduplicates device CVE/severity rows before counting' {
         $Devices | Should -Match '\| summarize by resourceId, device, vendor, cve, severity'
     }
-    It 'gives every Entra and Defender grid an honest empty-state message' {
+    It 'gives every Entra and Defender grid an informative empty-state message' {
         $grids = $Workbook.items | Where-Object { $_.name -like 'grid-*' -and $_.content.query }
         $grids.Count | Should -Be 9
         foreach ($g in $grids) {
